@@ -10,25 +10,35 @@ export function extractProfileUpdates(userMessage: string, currentProfile: Clien
   const updates: ProfileUpdate[] = [];
   const message = userMessage.toLowerCase();
   
-  // Extract goals
-  if (message.includes('short') && (message.includes('goal') || message.includes('term'))) {
-    const match = extractValue(userMessage, ['short', 'goal', 'term']);
+  // Extract goals - more flexible detection
+  if (message.includes('short') && (message.includes('goal') || message.includes('term') || message.includes('year'))) {
+    const match = extractValue(userMessage, ['short', 'goal', 'term', 'year']);
     if (match) {
       updates.push({ field: 'goals.short_term', value: match, confidence: 0.8 });
     }
   }
   
-  if (message.includes('medium') && (message.includes('goal') || message.includes('term'))) {
-    const match = extractValue(userMessage, ['medium', 'goal', 'term']);
+  if (message.includes('medium') && (message.includes('goal') || message.includes('term') || message.includes('year'))) {
+    const match = extractValue(userMessage, ['medium', 'goal', 'term', 'year']);
     if (match) {
       updates.push({ field: 'goals.medium_term', value: match, confidence: 0.8 });
     }
   }
   
-  if (message.includes('long') && (message.includes('goal') || message.includes('term'))) {
-    const match = extractValue(userMessage, ['long', 'goal', 'term']);
+  if (message.includes('long') && (message.includes('goal') || message.includes('term') || message.includes('year'))) {
+    const match = extractValue(userMessage, ['long', 'goal', 'term', 'year']);
     if (match) {
       updates.push({ field: 'goals.long_term', value: match, confidence: 0.8 });
+    }
+  }
+  
+  // Extract general goals without timeframe specification
+  if ((message.includes('goal') || message.includes('want') || message.includes('plan')) && 
+      !message.includes('short') && !message.includes('medium') && !message.includes('long')) {
+    const match = extractValue(userMessage, ['goal', 'want', 'plan']);
+    if (match && !currentProfile.goals.short_term && !currentProfile.goals.medium_term && !currentProfile.goals.long_term) {
+      // If no goals are set, assign to short-term by default
+      updates.push({ field: 'goals.short_term', value: match, confidence: 0.7 });
     }
   }
   
@@ -40,25 +50,27 @@ export function extractProfileUpdates(userMessage: string, currentProfile: Clien
     }
   }
   
-  // Extract income
-  if (message.includes('income') || message.includes('salary') || message.includes('earn')) {
-    const match = extractValue(userMessage, ['income', 'salary', 'earn']);
+  // Extract income - optional but helpful
+  if (message.includes('income') || message.includes('salary') || message.includes('earn') || message.includes('make')) {
+    const match = extractValue(userMessage, ['income', 'salary', 'earn', 'make']);
     if (match) {
       updates.push({ field: 'financials.income', value: match, confidence: 0.9 });
     }
   }
   
-  // Extract assets
-  if (message.includes('asset') || message.includes('saving') || message.includes('invest')) {
-    const match = extractValue(userMessage, ['asset', 'saving', 'invest']);
+  // Extract assets - most important for financials
+  if (message.includes('asset') || message.includes('saving') || message.includes('invest') || 
+      message.includes('money') || message.includes('wealth') || message.includes('inheritance')) {
+    const match = extractValue(userMessage, ['asset', 'saving', 'invest', 'money', 'wealth', 'inheritance']);
     if (match) {
       updates.push({ field: 'financials.assets', value: match, confidence: 0.8 });
     }
   }
   
-  // Extract expenses
-  if (message.includes('expense') || message.includes('spend') || message.includes('cost')) {
-    const match = extractValue(userMessage, ['expense', 'spend', 'cost']);
+  // Extract expenses - optional, can be a range
+  if (message.includes('expense') || message.includes('spend') || message.includes('cost') || 
+      message.includes('budget') || message.includes('monthly')) {
+    const match = extractValue(userMessage, ['expense', 'spend', 'cost', 'budget', 'monthly']);
     if (match) {
       updates.push({ field: 'financials.expenses', value: match, confidence: 0.8 });
     }
@@ -69,6 +81,25 @@ export function extractProfileUpdates(userMessage: string, currentProfile: Clien
     const match = extractValue(userMessage, ['time', 'horizon', 'year']);
     if (match) {
       updates.push({ field: 'time_horizon', value: match, confidence: 0.8 });
+    }
+  }
+  
+  // Extract preferences
+  if (message.includes('prefer') || message.includes('like') || message.includes('want') || 
+      message.includes('esg') || message.includes('sustainable') || message.includes('conservative') ||
+      message.includes('aggressive') || message.includes('hands-off') || message.includes('active')) {
+    const match = extractValue(userMessage, ['prefer', 'like', 'want', 'esg', 'sustainable', 'conservative', 'aggressive', 'hands-off', 'active']);
+    if (match) {
+      updates.push({ field: 'preferences', value: match, confidence: 0.7 });
+    }
+  }
+  
+  // Extract expectations
+  if (message.includes('expect') || message.includes('hope') || message.includes('return') || 
+      message.includes('success') || message.includes('achieve')) {
+    const match = extractValue(userMessage, ['expect', 'hope', 'return', 'success', 'achieve']);
+    if (match) {
+      updates.push({ field: 'expectations', value: match, confidence: 0.7 });
     }
   }
   
@@ -95,7 +126,7 @@ export function applyProfileUpdates(profile: ClientProfile, updates: ProfileUpda
   const newProfile = { ...profile };
   
   for (const update of updates) {
-    if (update.confidence > 0.7) { // Only apply high-confidence updates
+    if (update.confidence > 0.6) { // Lowered threshold for more flexible updates
       const fieldParts = update.field.split('.');
       
       if (fieldParts.length === 2) {
@@ -111,6 +142,16 @@ export function applyProfileUpdates(profile: ClientProfile, updates: ProfileUpda
         const field = fieldParts[0];
         if (field === 'time_horizon') {
           newProfile.time_horizon = update.value;
+        } else if (field === 'preferences') {
+          // Add to preferences array if not already present
+          if (!newProfile.preferences.includes(update.value)) {
+            newProfile.preferences.push(update.value);
+          }
+        } else if (field === 'expectations') {
+          // Add to expectations array if not already present
+          if (!newProfile.expectations.includes(update.value)) {
+            newProfile.expectations.push(update.value);
+          }
         }
       }
     }

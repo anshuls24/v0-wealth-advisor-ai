@@ -41,27 +41,36 @@ export const EMPTY_PROFILE: ClientProfile = {
 export function getMissingFields(profile: ClientProfile): string[] {
   const missing: string[] = [];
   
-  // Check goals
-  if (!profile.goals.short_term) missing.push("short_term_goals");
-  if (!profile.goals.medium_term) missing.push("medium_term_goals");
-  if (!profile.goals.long_term) missing.push("long_term_goals");
+  // Check goals - need at least 2 out of 3 (short/medium/long term)
+  const goalCount = [
+    profile.goals.short_term,
+    profile.goals.medium_term,
+    profile.goals.long_term
+  ].filter(Boolean).length;
   
-  // Check risk
+  if (goalCount < 2) {
+    if (!profile.goals.short_term) missing.push("short_term_goals");
+    if (!profile.goals.medium_term) missing.push("medium_term_goals");
+    if (!profile.goals.long_term) missing.push("long_term_goals");
+  }
+  
+  // Check risk - only tolerance is required, history is optional
   if (!profile.risk.tolerance) missing.push("risk_tolerance");
-  if (!profile.risk.history) missing.push("risk_history");
   
-  // Check financials
-  if (!profile.financials.income) missing.push("income");
+  // Check financials - income is optional, but assets are important
+  // If no income, assets become more critical to understand wealth source
   if (!profile.financials.assets) missing.push("assets");
-  if (!profile.financials.expenses) missing.push("expenses");
   
-  // Check time horizon
+  // Expenses can be a range, so it's optional
+  // Income is optional (could be student, retired, etc.)
+  
+  // Check time horizon - necessary
   if (!profile.time_horizon) missing.push("time_horizon");
   
-  // Check preferences (at least 2 required)
-  if (profile.preferences.length < 2) missing.push("preferences");
+  // Check preferences - only 1 required (reduced from 2)
+  if (profile.preferences.length < 1) missing.push("preferences");
   
-  // Check expectations (at least 1 required)
+  // Check expectations - only 1 required
   if (profile.expectations.length < 1) missing.push("expectations");
   
   return missing;
@@ -72,53 +81,99 @@ export function isProfileComplete(profile: ClientProfile): boolean {
 }
 
 export function getProfileCompletionPercentage(profile: ClientProfile): number {
-  const totalFields = 9; // Total required fields
-  const missingFields = getMissingFields(profile).length;
-  return Math.round(((totalFields - missingFields) / totalFields) * 100);
+  // Calculate total required fields based on flexible requirements
+  let totalRequired = 0;
+  
+  // Goals: 2 out of 3 required
+  const goalCount = [
+    profile.goals.short_term,
+    profile.goals.medium_term,
+    profile.goals.long_term
+  ].filter(Boolean).length;
+  totalRequired += Math.min(goalCount, 2);
+  
+  // Risk: 1 required (tolerance only)
+  if (profile.risk.tolerance) totalRequired += 1;
+  
+  // Financials: 1 required (assets)
+  if (profile.financials.assets) totalRequired += 1;
+  
+  // Time horizon: 1 required
+  if (profile.time_horizon) totalRequired += 1;
+  
+  // Preferences: 1 required
+  if (profile.preferences.length >= 1) totalRequired += 1;
+  
+  // Expectations: 1 required
+  if (profile.expectations.length >= 1) totalRequired += 1;
+  
+  const totalPossible = 6; // Total possible required fields
+  return Math.round((totalRequired / totalPossible) * 100);
 }
 
 export function generateProfileSummary(profile: ClientProfile): string {
   const completed: string[] = [];
   const missing: string[] = [];
   
-  // Goals
-  if (profile.goals.short_term) completed.push("short-term goals");
-  else missing.push("short-term goals");
+  // Goals - check if we have at least 2
+  const goalCount = [
+    profile.goals.short_term,
+    profile.goals.medium_term,
+    profile.goals.long_term
+  ].filter(Boolean).length;
   
-  if (profile.goals.medium_term) completed.push("medium-term goals");
-  else missing.push("medium-term goals");
+  if (goalCount >= 2) {
+    const goalTypes = [];
+    if (profile.goals.short_term) goalTypes.push("short-term");
+    if (profile.goals.medium_term) goalTypes.push("medium-term");
+    if (profile.goals.long_term) goalTypes.push("long-term");
+    completed.push(`${goalTypes.join(" and ")} goals`);
+  } else {
+    missing.push("goals (need at least 2 timeframes)");
+  }
   
-  if (profile.goals.long_term) completed.push("long-term goals");
-  else missing.push("long-term goals");
+  // Risk - only tolerance required
+  if (profile.risk.tolerance) {
+    completed.push("risk tolerance");
+  } else {
+    missing.push("risk tolerance");
+  }
   
-  // Risk
-  if (profile.risk.tolerance) completed.push("risk tolerance");
-  else missing.push("risk tolerance");
+  // Financials - assets are most important
+  if (profile.financials.assets) {
+    completed.push("assets");
+  } else {
+    missing.push("assets");
+  }
   
-  if (profile.risk.history) completed.push("risk history");
-  else missing.push("risk history");
-  
-  // Financials
-  if (profile.financials.income) completed.push("income information");
-  else missing.push("income information");
-  
-  if (profile.financials.assets) completed.push("assets");
-  else missing.push("assets");
-  
-  if (profile.financials.expenses) completed.push("expenses");
-  else missing.push("expenses");
+  // Optional financial info
+  if (profile.financials.income) {
+    completed.push("income information");
+  }
+  if (profile.financials.expenses) {
+    completed.push("expenses");
+  }
   
   // Time horizon
-  if (profile.time_horizon) completed.push("time horizon");
-  else missing.push("time horizon");
+  if (profile.time_horizon) {
+    completed.push("time horizon");
+  } else {
+    missing.push("time horizon");
+  }
   
-  // Preferences
-  if (profile.preferences.length >= 2) completed.push("investment preferences");
-  else missing.push("investment preferences");
+  // Preferences - only 1 required
+  if (profile.preferences.length >= 1) {
+    completed.push("investment preferences");
+  } else {
+    missing.push("investment preferences");
+  }
   
-  // Expectations
-  if (profile.expectations.length >= 1) completed.push("expectations");
-  else missing.push("expectations");
+  // Expectations - only 1 required
+  if (profile.expectations.length >= 1) {
+    completed.push("expectations");
+  } else {
+    missing.push("expectations");
+  }
   
   let summary = "";
   
