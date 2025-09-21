@@ -10,16 +10,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Send, Mic, MicOff, BarChart3, User, Bot, Calculator, TrendingUp } from "lucide-react"
+import { Send, Mic, MicOff, BarChart3, User, Bot, Calculator, TrendingUp, CheckCircle, Edit3 } from "lucide-react"
 import { VoiceRecorder } from "@/components/voice-recorder"
 import { ChartGenerator } from "@/components/chart-generator"
-import { ClientProfile, EMPTY_PROFILE, getProfileCompletionPercentage, isProfileComplete } from "@/lib/profile-schema"
+import { ClientProfile, EMPTY_PROFILE, getProfileCompletionPercentage, isProfileComplete, generateEditableProfileSummary } from "@/lib/profile-schema"
 
 export default function Home() {
   const [input, setInput] = useState("")
   const [showChartGenerator, setShowChartGenerator] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const [profile, setProfile] = useState<ClientProfile>(EMPTY_PROFILE)
+  const [showSummary, setShowSummary] = useState(false)
+  const [profileConfirmed, setProfileConfirmed] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const { messages, sendMessage, status, error } = useChat({
@@ -30,8 +32,10 @@ export default function Home() {
       },
     }),
     onFinish: (message) => {
-      // Profile updates are handled on the backend
-      // We could add client-side profile extraction here if needed
+      // Check if profile just became complete
+      if (isProfileComplete(profile) && !profileConfirmed) {
+        setShowSummary(true)
+      }
     },
   })
 
@@ -63,6 +67,17 @@ export default function Home() {
 
     sendMessage({ text: input })
     setInput("")
+  }
+
+  const handleConfirmProfile = () => {
+    setProfileConfirmed(true)
+    setShowSummary(false)
+    sendMessage({ text: "I confirm that all the information in my financial profile is accurate and complete. Please provide my personalized investment recommendations." })
+  }
+
+  const handleEditProfile = () => {
+    setShowSummary(false)
+    sendMessage({ text: "I'd like to make some changes to my profile. Please help me update the information." })
   }
 
   return (
@@ -97,6 +112,51 @@ export default function Home() {
             </TabsList>
 
             <TabsContent value="chat" className="space-y-6">
+              {/* Profile Summary Modal */}
+              {showSummary && isProfileComplete(profile) && !profileConfirmed && (
+                <Card className="border-green-200 bg-green-50">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-green-800">
+                      <CheckCircle className="h-5 w-5" />
+                      Profile Complete - Review Required
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <p className="text-green-700">
+                        🎉 Congratulations! Your financial profile is now complete. Please review the summary below to ensure all information is accurate.
+                      </p>
+                      
+                      <div className="bg-white p-4 rounded-lg border border-green-200 max-h-96 overflow-y-auto">
+                        <div className="prose prose-sm max-w-none">
+                          <div dangerouslySetInnerHTML={{ 
+                            __html: generateEditableProfileSummary(profile).replace(/\n/g, '<br>') 
+                          }} />
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-3">
+                        <Button 
+                          onClick={handleConfirmProfile}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Confirm & Get Recommendations
+                        </Button>
+                        <Button 
+                          onClick={handleEditProfile}
+                          variant="outline"
+                          className="border-green-300 text-green-700 hover:bg-green-100"
+                        >
+                          <Edit3 className="h-4 w-4 mr-2" />
+                          Edit Profile
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Chat Interface */}
               <Card className="h-[600px] flex flex-col overflow-hidden">
                 <CardHeader className="pb-4 flex-shrink-0 border-b bg-white">
@@ -121,9 +181,14 @@ export default function Home() {
                           Continue answering questions to complete your financial profile
                         </p>
                       )}
-                      {isProfileComplete(profile) && (
+                      {isProfileComplete(profile) && !profileConfirmed && (
                         <p className="text-xs text-green-600 font-medium">
-                          ✓ Profile complete! Ready for personalized recommendations
+                          ✓ Profile complete! Please review the summary above
+                        </p>
+                      )}
+                      {isProfileComplete(profile) && profileConfirmed && (
+                        <p className="text-xs text-blue-600 font-medium">
+                          ✓ Profile confirmed! Receiving personalized recommendations
                         </p>
                       )}
                     </div>

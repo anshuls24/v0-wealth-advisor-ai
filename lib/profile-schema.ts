@@ -187,3 +187,149 @@ export function generateProfileSummary(profile: ClientProfile): string {
   
   return summary;
 }
+
+export function generateFinalProfileSummary(profile: ClientProfile): string {
+  const summaryParts: string[] = [];
+  
+  // Goals Summary
+  const goals = [];
+  if (profile.goals.short_term) goals.push(`Short-term: ${profile.goals.short_term}`);
+  if (profile.goals.medium_term) goals.push(`Medium-term: ${profile.goals.medium_term}`);
+  if (profile.goals.long_term) goals.push(`Long-term: ${profile.goals.long_term}`);
+  
+  if (goals.length > 0) {
+    summaryParts.push(`🎯 **Financial Goals:**\n${goals.join('\n')}`);
+  }
+  
+  // Risk Profile Summary
+  if (profile.risk.tolerance) {
+    summaryParts.push(`⚖️ **Risk Profile:** ${profile.risk.tolerance}`);
+  }
+  if (profile.risk.history) {
+    summaryParts.push(`📈 **Investment History:** ${profile.risk.history}`);
+  }
+  
+  // Financial Situation Summary
+  const financials = [];
+  if (profile.financials.income) financials.push(`Income: ${profile.financials.income}`);
+  if (profile.financials.assets) financials.push(`Assets: ${profile.financials.assets}`);
+  if (profile.financials.expenses) financials.push(`Expenses: ${profile.financials.expenses}`);
+  
+  if (financials.length > 0) {
+    summaryParts.push(`💰 **Financial Situation:**\n${financials.join('\n')}`);
+  }
+  
+  // Time Horizon
+  if (profile.time_horizon) {
+    summaryParts.push(`⏰ **Time Horizon:** ${profile.time_horizon}`);
+  }
+  
+  // Preferences
+  if (profile.preferences.length > 0) {
+    summaryParts.push(`🎨 **Investment Preferences:** ${profile.preferences.join(', ')}`);
+  }
+  
+  // Expectations
+  if (profile.expectations.length > 0) {
+    summaryParts.push(`🎯 **Expectations:** ${profile.expectations.join(', ')}`);
+  }
+  
+  return summaryParts.join('\n\n');
+}
+
+export function generateProfileCompletionSummary(profile: ClientProfile): string {
+  const completionPercentage = getProfileCompletionPercentage(profile);
+  const isComplete = isProfileComplete(profile);
+  
+  let summary = `## 📊 Profile Completion Summary\n\n`;
+  summary += `**Completion Status:** ${completionPercentage}% ${isComplete ? '✅ Complete' : '⏳ In Progress'}\n\n`;
+  
+  if (isComplete) {
+    summary += `🎉 **Congratulations!** Your financial profile is complete and ready for personalized investment recommendations.\n\n`;
+    summary += `### 📋 Complete Profile Overview:\n\n`;
+    summary += generateFinalProfileSummary(profile);
+    summary += `\n\n### 🚀 Next Steps:\n`;
+    summary += `- Personalized investment recommendations\n`;
+    summary += `- Portfolio allocation strategy\n`;
+    summary += `- Risk-adjusted return expectations\n`;
+    summary += `- Ongoing monitoring and rebalancing plan\n`;
+  } else {
+    const missingFields = getMissingFields(profile);
+    summary += `### 📝 Still Missing:\n`;
+    summary += `- ${missingFields.join('\n- ')}\n\n`;
+    summary += `### 💡 To Complete Your Profile:\n`;
+    summary += `Continue our conversation to provide the remaining information. This will enable me to give you the most personalized and accurate financial advice.\n\n`;
+    summary += `### 📋 Current Information:\n\n`;
+    summary += generateFinalProfileSummary(profile);
+  }
+  
+  return summary;
+}
+
+export function generateEditableProfileSummary(profile: ClientProfile): string {
+  let summary = `## 📋 Your Financial Profile Summary\n\n`;
+  summary += `Please review the information below and let me know if anything needs to be corrected or updated:\n\n`;
+  
+  // Goals Section
+  summary += `### 🎯 Financial Goals\n`;
+  if (profile.goals.short_term) {
+    summary += `**Short-term (1-2 years):** ${profile.goals.short_term}\n`;
+  }
+  if (profile.goals.medium_term) {
+    summary += `**Medium-term (3-7 years):** ${profile.goals.medium_term}\n`;
+  }
+  if (profile.goals.long_term) {
+    summary += `**Long-term (8+ years):** ${profile.goals.long_term}\n`;
+  }
+  summary += `\n`;
+  
+  // Risk Profile Section
+  summary += `### ⚖️ Risk Profile\n`;
+  if (profile.risk.tolerance) {
+    summary += `**Risk Tolerance:** ${profile.risk.tolerance}\n`;
+  }
+  if (profile.risk.history) {
+    summary += `**Investment History:** ${profile.risk.history}\n`;
+  }
+  summary += `\n`;
+  
+  // Financial Situation Section
+  summary += `### 💰 Financial Situation\n`;
+  if (profile.financials.income) {
+    summary += `**Annual Income:** ${profile.financials.income}\n`;
+  }
+  if (profile.financials.assets) {
+    summary += `**Total Assets:** ${profile.financials.assets}\n`;
+  }
+  if (profile.financials.expenses) {
+    summary += `**Monthly Expenses:** ${profile.financials.expenses}\n`;
+  }
+  summary += `\n`;
+  
+  // Time Horizon Section
+  if (profile.time_horizon) {
+    summary += `### ⏰ Time Horizon\n`;
+    summary += `**Investment Timeline:** ${profile.time_horizon}\n\n`;
+  }
+  
+  // Preferences Section
+  if (profile.preferences.length > 0) {
+    summary += `### 🎨 Investment Preferences\n`;
+    summary += `**Preferences:** ${profile.preferences.join(', ')}\n\n`;
+  }
+  
+  // Expectations Section
+  if (profile.expectations.length > 0) {
+    summary += `### 🎯 Expectations\n`;
+    summary += `**Return Expectations:** ${profile.expectations.join(', ')}\n\n`;
+  }
+  
+  summary += `### ✅ Verification\n`;
+  summary += `Please review this summary and let me know:\n`;
+  summary += `- Is all the information accurate?\n`;
+  summary += `- Would you like to modify anything?\n`;
+  summary += `- Are there any additional details you'd like to add?\n\n`;
+  summary += `Once you confirm this information is correct, I'll provide personalized investment recommendations based on your complete financial profile.`;
+  
+  return summary;
+}
