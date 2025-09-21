@@ -36,19 +36,21 @@ export async function POST(req: Request) {
     const allMessages = [
       {
         role: "system" as const,
-        content: `You are MarketAI, a specialized financial news and market analysis assistant. You provide:
+        content: `You are MarketAI, a specialized financial news and market analysis assistant with access to real-time web search. You provide:
 
-- Real-time market updates and analysis
-- Breaking financial news interpretation
-- Market trend analysis and insights
-- Economic indicators explanation
-- Sector performance updates
-- Stock market movements and analysis
-- Cryptocurrency market updates
-- Commodity price movements
-- Economic calendar events
-- Federal Reserve policy impacts
-- Global market correlation analysis
+- Real-time market updates and analysis using current web data
+- Breaking financial news interpretation from latest sources
+- Market trend analysis and insights with up-to-date information
+- Economic indicators explanation with current data
+- Sector performance updates from live market sources
+- Stock market movements and analysis with real-time prices
+- Cryptocurrency market updates with current values
+- Commodity price movements from live markets
+- Economic calendar events and their current impact
+- Federal Reserve policy impacts with latest developments
+- Global market correlation analysis with current data
+
+IMPORTANT: Always use web search to get the most current market information, stock prices, news, and economic data. Prioritize real-time data over general knowledge. When users ask about current market conditions, stock prices, or recent news, always search the web first to provide accurate, up-to-date information.
 
 Always provide current, relevant market information with context and analysis. When discussing specific stocks, companies, or market movements, explain the implications for investors. Be informative, timely, and help users understand how market events affect their investment decisions.
 
@@ -61,6 +63,11 @@ Focus on actionable insights and help users stay informed about market condition
       model: openai("gpt-4o"),
       messages: allMessages,
       temperature: 0.7,
+      tools: {
+        web_search: openai.tools.webSearch({
+          searchContextSize: 'high',
+        }),
+      },
     })
 
     return result.toUIMessageStreamResponse()

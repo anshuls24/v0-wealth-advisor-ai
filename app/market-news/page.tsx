@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Send, TrendingUp, User, Bot, Newspaper, BarChart3, MessageSquare, LayoutDashboard } from "lucide-react"
 import Link from "next/link"
+import { Sources, SourcesTrigger, SourcesContent, Source } from "@/components/ai-elements/sources"
 
 export default function MarketNews() {
   const [input, setInput] = useState("")
@@ -21,6 +22,10 @@ export default function MarketNews() {
     transport: new DefaultChatTransport({
       api: "/api/market-news",
     }),
+    onFinish: (message) => {
+      // Sources will be available in the message object
+      console.log('Message finished:', message)
+    },
   })
 
   // Auto-scroll to bottom when new messages arrive
@@ -190,6 +195,26 @@ export default function MarketNews() {
                                 ?.map((part: any) => part.text)
                                 ?.join('') || ''}
                             </p>
+                            
+                            {/* Display sources for assistant messages */}
+                            {message.role === "assistant" && message.sources && message.sources.length > 0 && (
+                              <div className="mt-3 pt-3 border-t border-slate-200">
+                                <Sources>
+                                  <SourcesTrigger count={message.sources.length} />
+                                  <SourcesContent>
+                                    {message.sources.map((source: any, index: number) => (
+                                      <Source
+                                        key={index}
+                                        href={source.url}
+                                        title={source.title || source.url}
+                                      >
+                                        {source.title || source.url}
+                                      </Source>
+                                    ))}
+                                  </SourcesContent>
+                                </Sources>
+                              </div>
+                            )}
                           </div>
                           {message.role === "user" && (
                             <Avatar className="h-8 w-8 flex-shrink-0">
@@ -211,7 +236,7 @@ export default function MarketNews() {
                         <div className="bg-white border border-slate-200 rounded-lg px-4 py-3 shadow-sm">
                           <div className="flex items-center gap-2">
                             <div className="animate-spin h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full"></div>
-                            <span className="text-slate-600 text-sm">Analyzing market data...</span>
+                            <span className="text-slate-600 text-sm">Searching web for latest market data...</span>
                           </div>
                         </div>
                       </div>
@@ -235,7 +260,7 @@ export default function MarketNews() {
                     <Input
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
-                      placeholder="Ask about market news, stock analysis, economic trends, or sector updates..."
+                      placeholder="Ask about current market news, real-time stock prices, or latest economic trends..."
                       className="flex-1"
                       disabled={status === "streaming" || status === "submitted"}
                     />
