@@ -1,15 +1,40 @@
 import { openai } from "@ai-sdk/openai"
 import { streamText } from "ai"
 import { SYSTEM_INSTRUCTIONS } from "@/components/agent/prompt"
+import { ClientProfile, EMPTY_PROFILE, getMissingFields, generateProfileSummary } from "@/lib/profile-schema"
+import { extractProfileUpdates, applyProfileUpdates } from "@/lib/profile-extractor"
 
 export const maxDuration = 30
 
 export async function POST(req: Request) {
   try {
-    const { messages } = await req.json()
+    const { messages, profile: currentProfile } = await req.json()
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response("No messages provided", { status: 400 })
+    }
+
+    // Initialize profile if not provided
+    let profile: ClientProfile = currentProfile || EMPTY_PROFILE
+
+    // Extract profile information from the latest user message
+    const latestUserMessage = messages[messages.length - 1]
+    if (latestUserMessage && latestUserMessage.role === 'user') {
+      let userContent = ""
+      if (latestUserMessage.parts && Array.isArray(latestUserMessage.parts)) {
+        userContent = latestUserMessage.parts
+          .filter((part: any) => part.type === 'text')
+          .map((part: any) => part.text)
+          .join('')
+      } else if (latestUserMessage.content) {
+        userContent = latestUserMessage.content
+      } else if (latestUserMessage.text) {
+        userContent = latestUserMessage.text
+      }
+      
+      // Extract and apply profile updates
+      const updates = extractProfileUpdates(userContent, profile)
+      profile = applyProfileUpdates(profile, updates)
     }
 
     // Convert messages to the format expected by OpenAI
@@ -33,29 +58,35 @@ export async function POST(req: Request) {
       }
     })
 
-    // Add system message
+    // Generate profile summary for system prompt
+    const profileSummary = generateProfileSummary(profile)
+    const missingFields = getMissingFields(profile)
+    
+    // Add system message with profile management
     const allMessages = [
       {
         role: "system" as const,
-        content: `You are WealthAI, a sophisticated personal wealth advisor and financial planning assistant. You provide expert guidance on:
+        content: `${SYSTEM_INSTRUCTIONS}
 
-- Portfolio optimization and asset allocation
-- Investment strategies and market analysis  
-- Risk assessment and management
-- Retirement and financial planning
-- Tax optimization strategies
-- Market trends and economic insights
+IMPORTANT PROFILE MANAGEMENT:
+You must continue asking clarifying and follow-up questions until you have filled ALL fields in the client profile (goals, risk, financial situation, time horizon, preferences, expectations).  
+Never assume missing information — always ask.  
+If the client gives incomplete or vague answers, politely ask for clarification.  
+When you finish one section, summarize and move on to the next missing section.  
+Stop only once the profile is fully complete.
 
-Always provide professional, actionable advice while being clear about risks and the importance of diversification. Use specific examples and data when possible. Be conversational but authoritative in your responses.
+CURRENT PROFILE STATUS:
+${profileSummary}
 
-When users ask about generating charts or visualizations, acknowledge the request and describe what kind of chart would be helpful, but explain that chart generation is a separate feature.`,
+MISSING FIELDS: ${missingFields.length > 0 ? missingFields.join(', ') : 'None - Profile Complete!'}
+
+Continue gathering information for missing fields. Focus on the next most important missing piece of information.`,
       },
       ...convertedMessages,
     ]
 
     const result = streamText({
       model: openai("gpt-4o"),
-      system: SYSTEM_INSTRUCTIONS,
       messages: allMessages,  
       temperature: 0.7,
     })

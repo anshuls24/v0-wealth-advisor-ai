@@ -13,17 +13,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Send, Mic, MicOff, BarChart3, User, Bot, Calculator, TrendingUp } from "lucide-react"
 import { VoiceRecorder } from "@/components/voice-recorder"
 import { ChartGenerator } from "@/components/chart-generator"
+import { ClientProfile, EMPTY_PROFILE, getProfileCompletionPercentage, isProfileComplete } from "@/lib/profile-schema"
 
 export default function Home() {
   const [input, setInput] = useState("")
   const [showChartGenerator, setShowChartGenerator] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
+  const [profile, setProfile] = useState<ClientProfile>(EMPTY_PROFILE)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const { messages, sendMessage, status, error } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/conversation",
+      body: {
+        profile: profile,
+      },
     }),
+    onFinish: (message) => {
+      // Profile updates are handled on the backend
+      // We could add client-side profile extraction here if needed
+    },
   })
 
   // Auto-scroll to bottom when new messages arrive
@@ -95,6 +104,30 @@ export default function Home() {
                     <Bot className="h-5 w-5" />
                     Chat with WealthAI
                   </CardTitle>
+                  
+                  {/* Profile Progress Indicator */}
+                  {messages.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600">Profile Completion</span>
+                        <span className="text-slate-600">{getProfileCompletionPercentage(profile)}%</span>
+                      </div>
+                      <Progress 
+                        value={getProfileCompletionPercentage(profile)} 
+                        className="h-2"
+                      />
+                      {!isProfileComplete(profile) && (
+                        <p className="text-xs text-slate-500">
+                          Continue answering questions to complete your financial profile
+                        </p>
+                      )}
+                      {isProfileComplete(profile) && (
+                        <p className="text-xs text-green-600 font-medium">
+                          ✓ Profile complete! Ready for personalized recommendations
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col p-0 min-h-0">
                   {/* Messages Container */}
