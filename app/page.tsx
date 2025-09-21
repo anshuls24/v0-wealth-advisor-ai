@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Send, Mic, MicOff, BarChart3, User, Bot } from "lucide-react"
+import { Send, Mic, MicOff, BarChart3, User, Bot, Calculator } from "lucide-react"
 import { VoiceRecorder } from "@/components/voice-recorder"
 import { ChartGenerator } from "@/components/chart-generator"
 
@@ -228,14 +228,25 @@ export default function Home() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <Button
-                      onClick={() => setShowChartGenerator(!showChartGenerator)}
-                      className="w-full"
-                      variant="outline"
-                    >
-                      <BarChart3 className="h-4 w-4 mr-2" />
-                      Generate Financial Charts
-                    </Button>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Button
+                        onClick={() => setShowChartGenerator(!showChartGenerator)}
+                        className="w-full"
+                        variant="outline"
+                      >
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                        Generate Financial Charts
+                      </Button>
+                      
+                      <Button
+                        onClick={() => window.open('/tools', '_blank')}
+                        className="w-full"
+                        variant="outline"
+                      >
+                        <Calculator className="h-4 w-4 mr-2" />
+                        Advanced Financial Tools
+                      </Button>
+                    </div>
                     
                     {showChartGenerator && (
                       <div className="mt-4">
