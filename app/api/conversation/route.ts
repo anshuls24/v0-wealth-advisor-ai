@@ -1,5 +1,6 @@
 import { openai } from "@ai-sdk/openai"
 import { streamText } from "ai"
+import { SYSTEM_INSTRUCTIONS } from "@/components/agent/prompt"
 
 export const maxDuration = 30
 
@@ -54,7 +55,8 @@ When users ask about generating charts or visualizations, acknowledge the reques
 
     const result = streamText({
       model: openai("gpt-4o"),
-      messages: allMessages,
+      system: SYSTEM_INSTRUCTIONS,
+      messages: allMessages,  
       temperature: 0.7,
     })
 
