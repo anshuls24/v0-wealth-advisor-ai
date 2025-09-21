@@ -8,21 +8,18 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Send, Mic, MicOff, BarChart3, User, Bot, Calculator, TrendingUp } from "lucide-react"
-import { VoiceRecorder } from "@/components/voice-recorder"
-import { ChartGenerator } from "@/components/chart-generator"
+import { Send, TrendingUp, User, Bot, Newspaper, BarChart3, MessageSquare, LayoutDashboard } from "lucide-react"
+import Link from "next/link"
 
-export default function Home() {
+export default function MarketNews() {
   const [input, setInput] = useState("")
-  const [showChartGenerator, setShowChartGenerator] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const { messages, sendMessage, status, error } = useChat({
     transport: new DefaultChatTransport({
-      api: "/api/conversation",
+      api: "/api/market-news",
     }),
   })
 
@@ -58,42 +55,75 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* Header */}
+      <header className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-semibold text-slate-800">Market Updates & News</h1>
+                <p className="text-sm text-slate-600">Stay informed with real-time market analysis</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link href="/">
+                <Button variant="outline" size="sm">
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Chat Advisor
+                </Button>
+              </Link>
+              <Link href="/tools">
+                <Button variant="outline" size="sm">
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Financial Tools
+                </Button>
+              </Link>
+              <Link href="/dashboard">
+                <Button variant="outline" size="sm">
+                  <LayoutDashboard className="w-4 h-4 mr-2" />
+                  Dashboard
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </header>
+
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-slate-800 mb-2">
-              WealthAI Advisor
+              MarketAI News
             </h1>
             <p className="text-slate-600 text-lg">
-              Your personal AI-powered wealth management assistant
+              Your AI-powered market intelligence and news assistant
             </p>
           </div>
 
           {/* Main Content */}
-          <Tabs defaultValue="chat" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
-              <TabsTrigger value="chat" className="flex items-center gap-2">
-                <Bot className="h-4 w-4" />
-                Chat Advisor
+          <Tabs defaultValue="news" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="news" className="flex items-center gap-2">
+                <Newspaper className="h-4 w-4" />
+                Market News Chat
               </TabsTrigger>
-              <TabsTrigger value="market" className="flex items-center gap-2">
+              <TabsTrigger value="analysis" className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
-                Market News
-              </TabsTrigger>
-              <TabsTrigger value="tools" className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" />
-                Financial Tools
+                Market Analysis
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="chat" className="space-y-6">
+            <TabsContent value="news" className="space-y-6">
               {/* Chat Interface */}
               <Card className="h-[600px] flex flex-col overflow-hidden">
                 <CardHeader className="pb-4 flex-shrink-0 border-b bg-white">
                   <CardTitle className="flex items-center gap-2">
-                    <Bot className="h-5 w-5" />
-                    Chat with WealthAI
+                    <TrendingUp className="h-5 w-5" />
+                    Chat with MarketAI
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col p-0 min-h-0">
@@ -105,7 +135,7 @@ export default function Home() {
                     {/* Scroll indicator */}
                     {showScrollIndicator && (
                       <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-10">
-                        <div className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs shadow-lg">
+                        <div className="bg-green-600 text-white px-3 py-1 rounded-full text-xs shadow-lg">
                           ↑ Scroll up for more messages
                         </div>
                       </div>
@@ -117,7 +147,7 @@ export default function Home() {
                         <Button
                           size="sm"
                           onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })}
-                          className="rounded-full shadow-lg"
+                          className="rounded-full shadow-lg bg-green-600 hover:bg-green-700"
                         >
                           ↓
                         </Button>
@@ -126,10 +156,10 @@ export default function Home() {
                     <div className="space-y-4">
                     {messages.length === 0 ? (
                       <div className="text-center text-slate-500 py-8">
-                        <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>Start a conversation with your AI wealth advisor</p>
+                        <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>Start a conversation about market news and updates</p>
                         <p className="text-sm mt-2">
-                          Ask about investments, portfolio optimization, or financial planning
+                          Ask about stocks, market trends, economic news, or sector analysis
                         </p>
                       </div>
                     ) : (
@@ -142,15 +172,15 @@ export default function Home() {
                         >
                           {message.role === "assistant" && (
                             <Avatar className="h-8 w-8 flex-shrink-0">
-                              <AvatarFallback className="bg-blue-100 text-blue-600">
-                                <Bot className="h-4 w-4" />
+                              <AvatarFallback className="bg-green-100 text-green-600">
+                                <TrendingUp className="h-4 w-4" />
                               </AvatarFallback>
                             </Avatar>
                           )}
                           <div
                             className={`max-w-[80%] rounded-lg px-4 py-3 break-words shadow-sm ${
                               message.role === "user"
-                                ? "bg-blue-600 text-white ml-auto"
+                                ? "bg-green-600 text-white ml-auto"
                                 : "bg-white border border-slate-200 text-slate-800"
                             }`}
                           >
@@ -174,14 +204,14 @@ export default function Home() {
                     {status === "streaming" && (
                       <div className="flex gap-3 justify-start">
                         <Avatar className="h-8 w-8 flex-shrink-0">
-                          <AvatarFallback className="bg-blue-100 text-blue-600">
-                            <Bot className="h-4 w-4" />
+                          <AvatarFallback className="bg-green-100 text-green-600">
+                            <TrendingUp className="h-4 w-4" />
                           </AvatarFallback>
                         </Avatar>
                         <div className="bg-white border border-slate-200 rounded-lg px-4 py-3 shadow-sm">
                           <div className="flex items-center gap-2">
-                            <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                            <span className="text-slate-600 text-sm">Thinking...</span>
+                            <div className="animate-spin h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full"></div>
+                            <span className="text-slate-600 text-sm">Analyzing market data...</span>
                           </div>
                         </div>
                       </div>
@@ -205,14 +235,14 @@ export default function Home() {
                     <Input
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
-                      placeholder="Ask about investments, portfolio optimization, or financial planning..."
+                      placeholder="Ask about market news, stock analysis, economic trends, or sector updates..."
                       className="flex-1"
                       disabled={status === "streaming" || status === "submitted"}
                     />
                     <Button
                       type="submit"
                       disabled={!input.trim() || status === "streaming" || status === "submitted"}
-                      className="px-6"
+                      className="px-6 bg-green-600 hover:bg-green-700"
                     >
                       <Send className="h-4 w-4" />
                     </Button>
@@ -222,81 +252,60 @@ export default function Home() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="market" className="space-y-6">
+            <TabsContent value="analysis" className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5" />
-                    Market Updates & News
+                    Market Analysis Tools
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="text-center p-6 bg-green-50 border border-green-200 rounded-lg">
-                      <TrendingUp className="h-12 w-12 mx-auto mb-4 text-green-600" />
-                      <h3 className="text-lg font-semibold text-green-800 mb-2">MarketAI News</h3>
-                      <p className="text-green-700 mb-4">
-                        Get real-time market updates, breaking news, and market analysis from our AI-powered news assistant.
-                      </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Button
-                        onClick={() => window.open('/market-news', '_blank')}
-                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => setInput("What are the current market trends and which sectors are performing well?")}
+                        className="w-full"
+                        variant="outline"
                       >
                         <TrendingUp className="h-4 w-4 mr-2" />
-                        Open Market News
+                        Market Trends Analysis
                       </Button>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="p-4 bg-white border border-slate-200 rounded-lg">
-                        <h4 className="font-medium text-slate-800 mb-2">📈 Market Analysis</h4>
-                        <p className="text-sm text-slate-600">Real-time market trends and sector performance</p>
-                      </div>
-                      <div className="p-4 bg-white border border-slate-200 rounded-lg">
-                        <h4 className="font-medium text-slate-800 mb-2">📰 Breaking News</h4>
-                        <p className="text-sm text-slate-600">Latest financial news and market updates</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="tools" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    Financial Tools
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      
                       <Button
-                        onClick={() => setShowChartGenerator(!showChartGenerator)}
+                        onClick={() => setInput("What are today's top market movers and breaking news?")}
+                        className="w-full"
+                        variant="outline"
+                      >
+                        <Newspaper className="h-4 w-4 mr-2" />
+                        Breaking News
+                      </Button>
+                      
+                      <Button
+                        onClick={() => setInput("How are major indices performing today and what's driving the market?")}
                         className="w-full"
                         variant="outline"
                       >
                         <BarChart3 className="h-4 w-4 mr-2" />
-                        Generate Financial Charts
+                        Index Performance
                       </Button>
                       
                       <Button
-                        onClick={() => window.open('/tools', '_blank')}
+                        onClick={() => setInput("What economic indicators should I watch this week?")}
                         className="w-full"
                         variant="outline"
                       >
-                        <Calculator className="h-4 w-4 mr-2" />
-                        Advanced Financial Tools
+                        <TrendingUp className="h-4 w-4 mr-2" />
+                        Economic Calendar
                       </Button>
                     </div>
                     
-                    {showChartGenerator && (
-                      <div className="mt-4">
-                        <ChartGenerator onChartGenerated={() => {}} onClose={() => setShowChartGenerator(false)} />
-                      </div>
-                    )}
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-sm text-green-800 font-medium">💡 Quick Tips</p>
+                      <p className="text-sm text-green-700 mt-1">
+                        Try asking about specific stocks, sectors, or economic events. MarketAI can provide real-time analysis and context for your investment decisions.
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
