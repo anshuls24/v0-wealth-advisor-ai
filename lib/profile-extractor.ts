@@ -10,123 +10,141 @@ export function extractProfileUpdates(userMessage: string, currentProfile: Clien
   const updates: ProfileUpdate[] = [];
   const message = userMessage.toLowerCase();
   
-  // Extract goals - more flexible detection
-  if (message.includes('short') && (message.includes('goal') || message.includes('term') || message.includes('year'))) {
-    const match = extractValue(userMessage, ['short', 'goal', 'term', 'year']);
-    if (match) {
-      updates.push({ field: 'goals.short_term', value: match, confidence: 0.8 });
+  console.log('Extracting profile updates from:', userMessage);
+  console.log('Current profile state:', currentProfile);
+  
+  // Ultra-aggressive approach - assign ANY response to the first empty field in each category
+  
+  // Goals - assign ANY response to first empty goal slot
+  if (userMessage.length > 2 && !currentProfile.goals.short_term && !currentProfile.goals.medium_term && !currentProfile.goals.long_term) {
+    console.log('Checking for goal response...');
+    if (message.includes('want') || message.includes('goal') || message.includes('plan') || 
+        message.includes('save') || message.includes('buy') || message.includes('retire') ||
+        message.includes('wedding') || message.includes('house') || message.includes('car') ||
+        message.includes('education') || message.includes('vacation') || message.includes('debt') ||
+        message.includes('pay') || message.includes('fund') || message.includes('invest') ||
+        message.includes('nothing') || message.includes('like')) {
+      console.log('Found goal response:', userMessage);
+      updates.push({ field: 'goals.short_term', value: userMessage.trim(), confidence: 0.7 });
     }
   }
   
-  if (message.includes('medium') && (message.includes('goal') || message.includes('term') || message.includes('year'))) {
-    const match = extractValue(userMessage, ['medium', 'goal', 'term', 'year']);
-    if (match) {
-      updates.push({ field: 'goals.medium_term', value: match, confidence: 0.8 });
+  // Risk tolerance - assign ANY response that could be risk-related
+  if (!currentProfile.risk.tolerance) {
+    console.log('Checking for risk response...');
+    if (message.includes('risk') || message.includes('conservative') || message.includes('aggressive') || 
+        message.includes('moderate') || message.includes('comfortable') || message.includes('tolerance') ||
+        message.includes('like') || message.includes('prefer') || /\d+/.test(userMessage) ||
+        message.includes('nothing') || message.includes('ok')) {
+      console.log('Found risk response:', userMessage);
+      updates.push({ field: 'risk.tolerance', value: userMessage.trim(), confidence: 0.7 });
     }
   }
   
-  if (message.includes('long') && (message.includes('goal') || message.includes('term') || message.includes('year'))) {
-    const match = extractValue(userMessage, ['long', 'goal', 'term', 'year']);
-    if (match) {
-      updates.push({ field: 'goals.long_term', value: match, confidence: 0.8 });
+  // Assets - assign ANY response with numbers or money-related terms
+  if (!currentProfile.financials.assets) {
+    console.log('Checking for asset response...');
+    if (message.includes('money') || message.includes('saving') || message.includes('asset') || 
+        message.includes('worth') || message.includes('total') || message.includes('ira') ||
+        message.includes('bank') || message.includes('account') || message.includes('fund') ||
+        /\$[\d,]+/.test(userMessage) || /\d+k/.test(userMessage) || /\d+000/.test(userMessage) ||
+        /\d+/.test(userMessage)) {
+      console.log('Found asset response:', userMessage);
+      updates.push({ field: 'financials.assets', value: userMessage.trim(), confidence: 0.7 });
     }
   }
   
-  // Extract general goals without timeframe specification
-  if ((message.includes('goal') || message.includes('want') || message.includes('plan')) && 
-      !message.includes('short') && !message.includes('medium') && !message.includes('long')) {
-    const match = extractValue(userMessage, ['goal', 'want', 'plan']);
-    if (match && !currentProfile.goals.short_term && !currentProfile.goals.medium_term && !currentProfile.goals.long_term) {
-      // If no goals are set, assign to short-term by default
-      updates.push({ field: 'goals.short_term', value: match, confidence: 0.7 });
+  // Time horizon - assign ANY response with time-related terms
+  if (!currentProfile.time_horizon) {
+    console.log('Checking for time horizon response...');
+    if (message.includes('year') || message.includes('retire') || message.includes('time') || 
+        message.includes('when') || message.includes('month') || message.includes('yr') ||
+        message.includes('wedding') || message.includes('house') || message.includes('buy') ||
+        /\d+/.test(userMessage)) {
+      console.log('Found time horizon response:', userMessage);
+      updates.push({ field: 'time_horizon', value: userMessage.trim(), confidence: 0.7 });
     }
   }
   
-  // Extract risk tolerance
-  if (message.includes('risk') && (message.includes('tolerance') || message.includes('comfortable'))) {
-    const match = extractValue(userMessage, ['risk', 'tolerance', 'comfortable']);
-    if (match) {
-      updates.push({ field: 'risk.tolerance', value: match, confidence: 0.9 });
+  // Preferences - assign ANY response about investment preferences
+  if (currentProfile.preferences.length < 1) {
+    console.log('Checking for preference response...');
+    if (message.includes('prefer') || message.includes('like') || message.includes('want') || 
+        message.includes('avoid') || message.includes('stock') || message.includes('bond') ||
+        message.includes('option') || message.includes('etf') || message.includes('mutual') ||
+        message.includes('invest') || message.includes('fund') || message.includes('portfolio')) {
+      console.log('Found preference response:', userMessage);
+      updates.push({ field: 'preferences', value: userMessage.trim(), confidence: 0.7 });
     }
   }
   
-  // Extract income - optional but helpful
-  if (message.includes('income') || message.includes('salary') || message.includes('earn') || message.includes('make')) {
-    const match = extractValue(userMessage, ['income', 'salary', 'earn', 'make']);
-    if (match) {
-      updates.push({ field: 'financials.income', value: match, confidence: 0.9 });
+  // Expectations - assign ANY response with percentage or return expectations
+  if (currentProfile.expectations.length < 1) {
+    console.log('Checking for expectation response...');
+    if (message.includes('expect') || message.includes('hope') || message.includes('return') || 
+        message.includes('percent') || message.includes('%') || message.includes('earn') ||
+        message.includes('gain') || message.includes('profit') || /\d+%/.test(userMessage) ||
+        /\d+/.test(userMessage)) {
+      console.log('Found expectation response:', userMessage);
+      updates.push({ field: 'expectations', value: userMessage.trim(), confidence: 0.7 });
     }
   }
   
-  // Extract assets - most important for financials
-  if (message.includes('asset') || message.includes('saving') || message.includes('invest') || 
-      message.includes('money') || message.includes('wealth') || message.includes('inheritance')) {
-    const match = extractValue(userMessage, ['asset', 'saving', 'invest', 'money', 'wealth', 'inheritance']);
-    if (match) {
-      updates.push({ field: 'financials.assets', value: match, confidence: 0.8 });
-    }
-  }
-  
-  // Extract expenses - optional, can be a range
-  if (message.includes('expense') || message.includes('spend') || message.includes('cost') || 
-      message.includes('budget') || message.includes('monthly')) {
-    const match = extractValue(userMessage, ['expense', 'spend', 'cost', 'budget', 'monthly']);
-    if (match) {
-      updates.push({ field: 'financials.expenses', value: match, confidence: 0.8 });
-    }
-  }
-  
-  // Extract time horizon
-  if (message.includes('time') && (message.includes('horizon') || message.includes('year'))) {
-    const match = extractValue(userMessage, ['time', 'horizon', 'year']);
-    if (match) {
-      updates.push({ field: 'time_horizon', value: match, confidence: 0.8 });
-    }
-  }
-  
-  // Extract preferences
-  if (message.includes('prefer') || message.includes('like') || message.includes('want') || 
-      message.includes('esg') || message.includes('sustainable') || message.includes('conservative') ||
-      message.includes('aggressive') || message.includes('hands-off') || message.includes('active')) {
-    const match = extractValue(userMessage, ['prefer', 'like', 'want', 'esg', 'sustainable', 'conservative', 'aggressive', 'hands-off', 'active']);
-    if (match) {
-      updates.push({ field: 'preferences', value: match, confidence: 0.7 });
-    }
-  }
-  
-  // Extract expectations
-  if (message.includes('expect') || message.includes('hope') || message.includes('return') || 
-      message.includes('success') || message.includes('achieve')) {
-    const match = extractValue(userMessage, ['expect', 'hope', 'return', 'success', 'achieve']);
-    if (match) {
-      updates.push({ field: 'expectations', value: match, confidence: 0.7 });
-    }
-  }
-  
+  console.log('Total updates found:', updates.length);
   return updates;
 }
 
 function extractValue(message: string, keywords: string[]): string | null {
-  // Simple extraction - look for content after keywords
-  const sentences = message.split(/[.!?]/);
+  // Simple extraction - just return the message if it contains any keyword
+  const lowerMessage = message.toLowerCase();
   
-  for (const sentence of sentences) {
-    const lowerSentence = sentence.toLowerCase();
-    const hasKeyword = keywords.some(keyword => lowerSentence.includes(keyword));
-    
-    if (hasKeyword && sentence.trim().length > 10) {
-      return sentence.trim();
+  for (const keyword of keywords) {
+    if (lowerMessage.includes(keyword)) {
+      return message.trim();
     }
   }
   
   return null;
 }
 
+// Test function to verify extraction is working
+export function testProfileExtraction() {
+  const testProfile = {
+    goals: { short_term: null, medium_term: null, long_term: null },
+    risk: { tolerance: null, history: null },
+    financials: { income: null, assets: null, expenses: null },
+    time_horizon: null,
+    preferences: [],
+    expectations: []
+  };
+  
+  const testMessages = [
+    "pay for my wedding",
+    "buy a house", 
+    "10",
+    "120k",
+    "50k",
+    "ira",
+    "6 months for wedding",
+    "3 yrs",
+    "options and stocks",
+    "avoid bonds",
+    "12 percent"
+  ];
+  
+  console.log('=== TESTING PROFILE EXTRACTION ===');
+  testMessages.forEach(msg => {
+    const updates = extractProfileUpdates(msg, testProfile);
+    console.log(`Test message "${msg}" -> Updates:`, updates);
+  });
+  console.log('=== END TEST ===');
+}
+
 export function applyProfileUpdates(profile: ClientProfile, updates: ProfileUpdate[]): ClientProfile {
   const newProfile = { ...profile };
   
   for (const update of updates) {
-    if (update.confidence > 0.6) { // Lowered threshold for more flexible updates
+    if (update.confidence > 0.5) { // Even more lenient threshold for better extraction
       const fieldParts = update.field.split('.');
       
       if (fieldParts.length === 2) {

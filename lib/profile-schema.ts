@@ -41,12 +41,16 @@ export const EMPTY_PROFILE: ClientProfile = {
 export function getMissingFields(profile: ClientProfile): string[] {
   const missing: string[] = [];
   
+  console.log('Checking missing fields for profile:', profile);
+  
   // Check goals - need at least 2 out of 3 (short/medium/long term)
   const goalCount = [
     profile.goals.short_term,
     profile.goals.medium_term,
     profile.goals.long_term
   ].filter(Boolean).length;
+  
+  console.log('Goal count:', goalCount);
   
   if (goalCount < 2) {
     if (!profile.goals.short_term) missing.push("short_term_goals");
@@ -73,11 +77,17 @@ export function getMissingFields(profile: ClientProfile): string[] {
   // Check expectations - only 1 required
   if (profile.expectations.length < 1) missing.push("expectations");
   
+  console.log('Missing fields:', missing);
   return missing;
 }
 
 export function isProfileComplete(profile: ClientProfile): boolean {
   return getMissingFields(profile).length === 0;
+}
+
+export function isProfileSufficientlyComplete(profile: ClientProfile): boolean {
+  const percentage = getProfileCompletionPercentage(profile);
+  return percentage >= 75;
 }
 
 export function getProfileCompletionPercentage(profile: ClientProfile): number {
@@ -108,7 +118,21 @@ export function getProfileCompletionPercentage(profile: ClientProfile): number {
   if (profile.expectations.length >= 1) totalRequired += 1;
   
   const totalPossible = 6; // Total possible required fields
-  return Math.round((totalRequired / totalPossible) * 100);
+  const percentage = Math.round((totalRequired / totalPossible) * 100);
+  
+  console.log('Profile completion calculation:', {
+    goalCount,
+    riskTolerance: !!profile.risk.tolerance,
+    assets: !!profile.financials.assets,
+    timeHorizon: !!profile.time_horizon,
+    preferences: profile.preferences.length,
+    expectations: profile.expectations.length,
+    totalRequired,
+    totalPossible,
+    percentage
+  });
+  
+  return percentage;
 }
 
 export function generateProfileSummary(profile: ClientProfile): string {
