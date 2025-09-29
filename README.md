@@ -15,7 +15,8 @@ The WealthAI Advisor is a fully autonomous intelligent financial system that:
 
 📊 **Project Metrics**
 
-- **3 Core Modules** - Chat Advisor, Market News, Financial Tools
+- **4 Core Modules** - Chat Advisor, AI-RAG System, Market News, Financial Tools
+- **RAG Implementation** - Document retrieval with source citations and streaming responses
 - **Real-time Profile Management** - Dynamic user profile collection and storage
 - **Web Search Integration** - Live market data and news analysis
 - **Flexible Profile Requirements** - Adaptive questioning based on user responses
@@ -29,6 +30,7 @@ The WealthAI Advisor is a fully autonomous intelligent financial system that:
 🤖 **Intelligent Chat Advisor**: Sophisticated AI agent that collects user profiles and provides personalized financial advice
 🌐 **Market News & Analysis**: Real-time market updates with web search integration and source citations
 📊 **Financial Tools**: Comprehensive suite of financial calculators and chart generators
+🔍 **RAG System (NEW)**: Retrieval-Augmented Generation for document-based financial Q&A with source citations
 💡 **Smart Profile Management**: Dynamic profile collection with flexible requirements and completion tracking
 📚 **Source Attribution**: Expandable source citations with direct links for market data
 🗄️ **Dual Storage Modes**: LocalStorage for development, Supabase-ready for production
@@ -39,9 +41,11 @@ The WealthAI Advisor is a fully autonomous intelligent financial system that:
 ## Technical Highlights
 
 - **AI SDK Integration** - Vercel AI SDK with OpenAI GPT-4o for intelligent conversations
+- **RAG Implementation** - Document retrieval with semantic search and source citations
 - **Web Search Tools** - Real-time market data fetching with source attribution
 - **Profile Schema Management** - Flexible JSON schema with completion percentage tracking
 - **State Management** - Robust React state management with in-memory persistence
+- **Streaming Responses** - Real-time AI responses with manual streaming parser
 - **Responsive Design** - Modern UI with Tailwind CSS and shadcn/ui components
 - **Error Handling** - Comprehensive error management and user feedback
 - **Debug Tools** - Built-in debugging utilities for profile state inspection
@@ -58,6 +62,7 @@ The WealthAI Advisor is a fully autonomous intelligent financial system that:
 ## Component Overview
 
 - **Chat Advisor**: Main conversational interface with profile collection and financial advice
+- **AI-RAG System**: Document retrieval and Q&A with source citations and semantic search
 - **Market News**: Real-time market analysis with web search capabilities
 - **Financial Tools**: Calculator and chart generation utilities
 - **Profile Management**: Dynamic user profile collection and storage system
@@ -160,6 +165,37 @@ Main chat endpoint for the wealth advisor.
 }
 ```
 
+## POST /api/rag-chat
+RAG (Retrieval-Augmented Generation) endpoint for document-based Q&A.
+
+**Request:**
+```json
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "What is financial planning?"
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "response": "Based on the retrieved documents, financial planning is the process of creating a comprehensive strategy for managing your finances to achieve your life goals...",
+  "sources": [
+    {
+      "id": "doc-1",
+      "title": "Introduction to Financial Planning",
+      "url": "https://example.com/financial-planning-guide",
+      "score": 0.95
+    }
+  ],
+  "mode": "rag"
+}
+```
+
 ## POST /api/market-news
 Market news and analysis endpoint with web search.
 
@@ -248,10 +284,81 @@ interface ClientProfile {
 - **Summary Generation**: Automatic profile summaries at 75% and 100% completion
 - **User Verification**: Editable summaries with confirmation workflow
 
+🔍 **RAG System (Retrieval-Augmented Generation)**
+
+## Overview
+
+The RAG system provides document-based Q&A capabilities, allowing users to query financial documents and receive accurate, source-cited responses. This system is completely isolated from the main chat advisor to ensure focused document retrieval without profile-building interference.
+
+## Key Features
+
+- **Document Retrieval**: Semantic search through financial documents with relevance scoring
+- **Source Citations**: Every response includes document sources with titles, URLs, and relevance scores
+- **Streaming Responses**: Real-time response generation with manual streaming parser
+- **Complete Isolation**: Separate from advisor chat to prevent cross-contamination
+- **Mock Implementation**: Currently uses mock financial documents for demonstration
+
+## Architecture
+
+```typescript
+// Document Interface
+interface VectorizeDocument {
+  id: string;
+  content: string;
+  metadata?: {
+    title?: string;
+    source?: string;
+    url?: string;
+  };
+  score?: number;
+}
+
+// RAG Response Format
+interface RAGResponse {
+  documents: VectorizeDocument[];
+  query: string;
+  total_results: number;
+}
+```
+
+## Mock Document Collection
+
+The system includes comprehensive financial documents covering:
+
+- **Financial Planning**: Comprehensive strategy creation and goal setting
+- **Investment Diversification**: Risk management and portfolio construction
+- **Risk Tolerance**: Understanding and assessing investment risk preferences
+- **Retirement Planning**: 401(k), IRA, and retirement income strategies
+- **Emergency Funds**: Building financial security and emergency preparedness
+
+## Usage Examples
+
+**Query**: "What is wealth management?"
+**Response**: Combines information from multiple documents about financial planning, investment diversification, and risk management, with full source citations.
+
+**Query**: "How should I diversify my portfolio?"
+**Response**: Retrieves and synthesizes information from investment diversification documents with specific strategies and recommendations.
+
+## Technical Implementation
+
+- **Endpoint**: `/api/rag-chat` - Dedicated RAG processing endpoint
+- **Client**: `components/rag-chat.tsx` - Isolated chat interface with source display
+- **Service**: `lib/vectorize.ts` - Mock document retrieval with keyword matching
+- **Streaming**: Custom streaming parser for real-time response display
+- **Debugging**: Comprehensive logging for document retrieval and AI responses
+
+## Future Enhancements
+
+- **Real Vectorize.io Integration**: Replace mock implementation with actual vector database
+- **Document Upload**: Allow users to upload their own financial documents
+- **Advanced Search**: Implement semantic similarity search with embeddings
+- **Document Management**: Add, edit, and organize document collections
+
 🗺️ **Development Roadmap**
 
 ## Recently Completed ✅
 
+- **RAG System Implementation** - Document retrieval with source citations and streaming responses
 - **Profile Management System** - Dynamic collection with flexible requirements
 - **Market News Integration** - Real-time web search with source attribution
 - **LocalStorage Implementation** - Client-side profile persistence
@@ -260,6 +367,7 @@ interface ClientProfile {
 
 ## Next Priority Items
 
+- **Real Vectorize.io Integration** - Replace mock RAG with actual vector database
 - **Supabase Integration** - Database storage for production
 - **Profile Analytics** - Advanced completion tracking and insights
 - **Enhanced Market Tools** - More sophisticated financial analysis
@@ -267,6 +375,7 @@ interface ClientProfile {
 
 ## Coming Soon
 
+- **Document Upload** - User document upload for personalized RAG
 - **Portfolio Tracking** - Investment performance monitoring
 - **Goal Progress** - Visual progress tracking for financial goals
 - **Advanced Analytics** - Comprehensive financial health scoring
