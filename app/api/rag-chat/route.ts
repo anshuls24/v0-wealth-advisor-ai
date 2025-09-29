@@ -68,9 +68,9 @@ export async function POST(req: Request) {
     }
 
     // Handle greetings with a hardcoded response to prevent any AI contamination
-    const isGenericGreeting = /^(hi|hello|hey|howdy|yo|sup|start|help)\b/i.test(userQuery.trim())
-      || userQuery.trim().length < 4
-      || !/[a-zA-Z]/.test(userQuery)
+    // Only match clear greeting words; do NOT filter by short length to avoid blocking queries like "IRA"
+    const trimmedQuery = userQuery.trim()
+    const isGenericGreeting = /^(hi|hello|hey|howdy|yo|sup|start|help)\b[!.,\s]*$/i.test(trimmedQuery)
 
     if (isGenericGreeting) {
       // Return hardcoded response immediately for greetings - no AI involved
@@ -93,21 +93,20 @@ export async function POST(req: Request) {
       );
     }
 
-    // Helpful document retrieval system prompt
-    const systemPrompt = `You are a financial document assistant. Answer questions using ONLY the provided documents below.
+    // Simple, flexible system prompt
+    const systemPrompt = `You are a helpful financial assistant. Answer questions using the provided documents.
 
-RETRIEVED DOCUMENTS:
+AVAILABLE DOCUMENTS:
 ${contextText}
 
-INSTRUCTIONS:
-1. Use ONLY the information from the documents above to answer questions
-2. If the documents contain relevant information, provide a comprehensive answer citing the document titles
-3. Connect related concepts from multiple documents when relevant (e.g., "wealth management" encompasses financial planning, investment diversification, risk management, etc.)
-4. If documents truly don't contain relevant information, say "The provided documents don't contain information about [topic]"
-5. Be helpful and informative while staying factual
-6. NO greetings, onboarding, or profile-building questions
+Instructions:
+- Use the documents above to answer questions
+- If documents contain relevant information, provide a helpful answer
+- Cite document sources when possible
+- Be conversational and helpful
+- If no relevant information is found, say so briefly
 
-Answer the user's question using the document content above.`
+Answer the user's question:`
 
     console.log('🤖 Final system prompt being sent to AI:')
     console.log(systemPrompt)
@@ -129,7 +128,8 @@ Answer the user's question using the document content above.`
     const result = streamText({
       model: openai("gpt-4o-mini"),
       messages: allMessages,
-      temperature: 0.3, // Lower temperature for more factual responses
+      temperature: 0.1, // Very low temperature for consistent, factual responses
+      maxTokens: 500, // Limit response length
     })
 
     // Add document sources to the response headers for the client to access

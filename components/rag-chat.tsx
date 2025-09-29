@@ -167,35 +167,27 @@ export function RAGChat({ className }: RAGChatProps) {
     
     console.log('🔥 RAG Chat: Raw AI response:', raw);
     
-    // Temporarily disable sanitization to debug
-    return raw;
-    
-    // const banned = [
-    //   /financial profile/i,
-    //   /profile summary/i,
-    //   /sidebar/i,
-    //   /complete (your )?financial profile/i,
-    //   /(before we|to get started).*gather/i,
-    //   /speaking of goals/i,
-    //   /would you like to (explore|discuss|talk about).*goals?/i,
-    //   /tailor (?:a )?plan for you/i,
-    //   /what are your .*goals?/i,
-    //   /(could|would) you .* (share|tell).*goals?/i,
-    //   /your (short|medium|long)[- ]term.*goals?/i,
-    //   /(short|medium|long)[- ]term (financial )?(objectives|goals)/i,
-    //   /onboard|onboarding/i,
-    // ]
+    // Only remove the most obvious onboarding phrases, keep everything else
+    const banned = [
+      /complete (your )?financial profile/i,
+      /profile summary/i,
+      /sidebar/i,
+      /onboard|onboarding/i,
+      /would you like to explore your financial goals/i,
+      /tailor (?:a )?plan for you/i,
+    ]
 
-    // // Remove only offending sentences/lines instead of blanketing the whole reply
-    // const parts = raw
-    //   .split(/(?<=[\.!?])\s+|\n+/)
-    //   .filter(Boolean)
-    //   .filter((segment) => !banned.some((r) => r.test(segment)))
+    // Remove only the most obvious offending sentences
+    const parts = raw
+      .split(/(?<=[\.!?])\s+|\n+/)
+      .filter(Boolean)
+      .filter((segment) => !banned.some((r) => r.test(segment)))
 
-    // if (parts.length === 0) {
-    //   return "Ask a question about your documents and I'll retrieve relevant information and cite sources."
-    // }
-    // return parts.join(' ')
+    // If we removed everything, return the original (it's probably a valid response)
+    if (parts.length === 0) {
+      return raw;
+    }
+    return parts.join(' ')
   }
 
   const scrollToBottom = () => {
