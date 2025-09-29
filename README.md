@@ -41,7 +41,7 @@ The WealthAI Advisor is a fully autonomous intelligent financial system that:
 - **AI SDK Integration** - Vercel AI SDK with OpenAI GPT-4o for intelligent conversations
 - **Web Search Tools** - Real-time market data fetching with source attribution
 - **Profile Schema Management** - Flexible JSON schema with completion percentage tracking
-- **State Management** - Robust React state management with localStorage persistence
+- **State Management** - Robust React state management with in-memory persistence
 - **Responsive Design** - Modern UI with Tailwind CSS and shadcn/ui components
 - **Error Handling** - Comprehensive error management and user feedback
 - **Debug Tools** - Built-in debugging utilities for profile state inspection
@@ -61,7 +61,7 @@ The WealthAI Advisor is a fully autonomous intelligent financial system that:
 - **Market News**: Real-time market analysis with web search capabilities
 - **Financial Tools**: Calculator and chart generation utilities
 - **Profile Management**: Dynamic user profile collection and storage system
-- **Storage Layer**: Abstraction supporting localStorage and future database integration
+- **Storage Layer**: In-memory state management with future database integration support
 
 🚀 **Getting Started**
 
@@ -128,9 +128,9 @@ Open browser: Navigate to http://localhost:3000
 - **Language**: TypeScript (strict mode)
 - **AI**: Vercel AI SDK + OpenAI GPT-4o
 - **UI**: shadcn/ui components + Tailwind CSS
-- **Storage**: LocalStorage (development) / Supabase (production ready)
+- **Storage**: In-memory state (development) / Database integration ready
 - **Web Search**: AI SDK web search tools with source attribution
-- **State Management**: React hooks with localStorage persistence
+- **State Management**: React hooks with in-memory state persistence
 - **Code Quality**: ESLint, Prettier, TypeScript strict mode
 
 📦 **API Endpoints**

@@ -6,91 +6,252 @@ export interface ProfileUpdate {
   confidence: number;
 }
 
+// Enhanced NLP-based profile extraction inspired by booking-agent-ts approach
 export function extractProfileUpdates(userMessage: string, currentProfile: ClientProfile): ProfileUpdate[] {
   const updates: ProfileUpdate[] = [];
   const message = userMessage.toLowerCase();
   
-  console.log('Extracting profile updates from:', userMessage);
-  console.log('Current profile state:', currentProfile);
+  console.log('🔍 Smart profile extraction from:', userMessage);
+  console.log('📊 Current profile context:', currentProfile);
   
-  // Ultra-aggressive approach - assign ANY response to the first empty field in each category
+  // Context-aware structured extraction with confidence scoring
+  const extractionResults = performStructuredExtraction(userMessage, currentProfile);
+  updates.push(...extractionResults);
   
-  // Goals - assign ANY response to first empty goal slot
-  if (userMessage.length > 2 && !currentProfile.goals.short_term && !currentProfile.goals.medium_term && !currentProfile.goals.long_term) {
-    console.log('Checking for goal response...');
-    if (message.includes('want') || message.includes('goal') || message.includes('plan') || 
-        message.includes('save') || message.includes('buy') || message.includes('retire') ||
-        message.includes('wedding') || message.includes('house') || message.includes('car') ||
-        message.includes('education') || message.includes('vacation') || message.includes('debt') ||
-        message.includes('pay') || message.includes('fund') || message.includes('invest') ||
-        message.includes('nothing') || message.includes('like')) {
-      console.log('Found goal response:', userMessage);
-      updates.push({ field: 'goals.short_term', value: userMessage.trim(), confidence: 0.7 });
+  console.log(`✅ Extracted ${updates.length} structured updates with confidence scores`);
+  return updates;
+}
+
+// Smart structured extraction inspired by booking-agent-ts architecture
+function performStructuredExtraction(userMessage: string, currentProfile: ClientProfile): ProfileUpdate[] {
+  const updates: ProfileUpdate[] = [];
+  const message = userMessage.toLowerCase();
+  
+  // 1. FINANCIAL GOALS EXTRACTION - Context-aware timeframe detection
+  const goalExtraction = extractFinancialGoals(userMessage, currentProfile);
+  updates.push(...goalExtraction);
+  
+  // 2. RISK TOLERANCE EXTRACTION - Sentiment and keyword analysis  
+  const riskExtraction = extractRiskTolerance(userMessage, currentProfile);
+  updates.push(...riskExtraction);
+  
+  // 3. FINANCIAL ASSETS EXTRACTION - Numeric and context analysis
+  const assetExtraction = extractFinancialAssets(userMessage, currentProfile);
+  updates.push(...assetExtraction);
+  
+  // 4. TIME HORIZON EXTRACTION - Temporal analysis
+  const timeExtraction = extractTimeHorizon(userMessage, currentProfile);
+  updates.push(...timeExtraction);
+  
+  // 5. INVESTMENT PREFERENCES - Preference analysis
+  const prefExtraction = extractInvestmentPreferences(userMessage, currentProfile);
+  updates.push(...prefExtraction);
+  
+  // 6. RETURN EXPECTATIONS - Performance expectation analysis
+  const expectationExtraction = extractReturnExpectations(userMessage, currentProfile);
+  updates.push(...expectationExtraction);
+  
+  return updates;
+}
+
+// Context-aware goal extraction with timeframe intelligence
+function extractFinancialGoals(userMessage: string, currentProfile: ClientProfile): ProfileUpdate[] {
+  const updates: ProfileUpdate[] = [];
+  const message = userMessage.toLowerCase();
+  
+  // Skip if all goals are already filled
+  if (currentProfile.goals.short_term && currentProfile.goals.medium_term && currentProfile.goals.long_term) {
+    return updates;
+  }
+  
+  // Goal keywords with confidence scoring
+  const goalKeywords = ['want', 'goal', 'plan', 'save', 'buy', 'need', 'hope', 'wish', 'intend', 'aim'];
+  const hasGoalKeyword = goalKeywords.some(keyword => message.includes(keyword));
+  
+  // Timeframe detection for smart slot assignment
+  const shortTermIndicators = ['soon', 'month', 'year', 'immediate', 'next year', 'short term'];
+  const mediumTermIndicators = ['few years', 'medium term', '3 years', '5 years', '7 years'];
+  const longTermIndicators = ['retirement', 'long term', 'decade', '10 years', '20 years', '30 years'];
+  
+  if (hasGoalKeyword || userMessage.length > 10) {
+    let confidence = 0.6;
+    let targetSlot = 'short_term'; // Default
+    
+    // Smart timeframe assignment
+    if (shortTermIndicators.some(indicator => message.includes(indicator))) {
+      targetSlot = 'short_term';
+      confidence = 0.8;
+    } else if (mediumTermIndicators.some(indicator => message.includes(indicator))) {
+      targetSlot = 'medium_term'; 
+      confidence = 0.85;
+    } else if (longTermIndicators.some(indicator => message.includes(indicator))) {
+      targetSlot = 'long_term';
+      confidence = 0.9;
+    }
+    
+    // Use first available slot if target is occupied
+    if ((currentProfile.goals as any)[targetSlot]) {
+      if (!currentProfile.goals.short_term) targetSlot = 'short_term';
+      else if (!currentProfile.goals.medium_term) targetSlot = 'medium_term';  
+      else if (!currentProfile.goals.long_term) targetSlot = 'long_term';
+      else return updates; // All slots filled
+    }
+    
+    updates.push({
+      field: `goals.${targetSlot}`,
+      value: userMessage.trim(),
+      confidence
+    });
+    
+    console.log(`🎯 Goal extracted for ${targetSlot}: "${userMessage}" (confidence: ${confidence})`);
+  }
+  
+  return updates;
+}
+
+// Risk tolerance extraction with sentiment analysis
+function extractRiskTolerance(userMessage: string, currentProfile: ClientProfile): ProfileUpdate[] {
+  const updates: ProfileUpdate[] = [];
+  const message = userMessage.toLowerCase();
+  
+  if (currentProfile.risk.tolerance) return updates;
+  
+  const riskKeywords = {
+    conservative: ['conservative', 'safe', 'low risk', 'careful', 'cautious', 'stable', 'secure'],
+    moderate: ['moderate', 'balanced', 'medium', 'comfortable', 'reasonable', 'middle'],
+    aggressive: ['aggressive', 'high risk', 'growth', 'bold', 'risky', 'adventurous']
+  };
+  
+  let maxConfidence = 0;
+  let riskLevel = '';
+  
+  for (const [level, keywords] of Object.entries(riskKeywords)) {
+    const matches = keywords.filter(keyword => message.includes(keyword)).length;
+    const confidence = Math.min(0.9, 0.6 + (matches * 0.1));
+    
+    if (matches > 0 && confidence > maxConfidence) {
+      maxConfidence = confidence;
+      riskLevel = level;
     }
   }
   
-  // Risk tolerance - assign ANY response that could be risk-related
-  if (!currentProfile.risk.tolerance) {
-    console.log('Checking for risk response...');
-    if (message.includes('risk') || message.includes('conservative') || message.includes('aggressive') || 
-        message.includes('moderate') || message.includes('comfortable') || message.includes('tolerance') ||
-        message.includes('like') || message.includes('prefer') || /\d+/.test(userMessage) ||
-        message.includes('nothing') || message.includes('ok')) {
-      console.log('Found risk response:', userMessage);
-      updates.push({ field: 'risk.tolerance', value: userMessage.trim(), confidence: 0.7 });
-    }
+  if (riskLevel && maxConfidence > 0.5) {
+    updates.push({
+      field: 'risk.tolerance',
+      value: riskLevel,
+      confidence: maxConfidence
+    });
+    console.log(`⚖️ Risk tolerance extracted: ${riskLevel} (confidence: ${maxConfidence})`);
   }
   
-  // Assets - assign ANY response with numbers or money-related terms
-  if (!currentProfile.financials.assets) {
-    console.log('Checking for asset response...');
-    if (message.includes('money') || message.includes('saving') || message.includes('asset') || 
-        message.includes('worth') || message.includes('total') || message.includes('ira') ||
-        message.includes('bank') || message.includes('account') || message.includes('fund') ||
-        /\$[\d,]+/.test(userMessage) || /\d+k/.test(userMessage) || /\d+000/.test(userMessage) ||
-        /\d+/.test(userMessage)) {
-      console.log('Found asset response:', userMessage);
-      updates.push({ field: 'financials.assets', value: userMessage.trim(), confidence: 0.7 });
-    }
+  return updates;
+}
+
+// Financial assets extraction with numeric intelligence
+function extractFinancialAssets(userMessage: string, currentProfile: ClientProfile): ProfileUpdate[] {
+  const updates: ProfileUpdate[] = [];
+  const message = userMessage.toLowerCase();
+  
+  if (currentProfile.financials.assets) return updates;
+  
+  // Numeric patterns and financial keywords
+  const hasNumbers = /\d+/.test(userMessage);
+  const hasMoneySymbols = /\$[\d,]+/.test(userMessage) || /\d+k\b/.test(userMessage) || /\d+000/.test(userMessage);
+  const financialKeywords = ['saving', 'asset', 'worth', 'total', 'account', 'bank', 'portfolio', 'investment'];
+  
+  const hasFinancialKeyword = financialKeywords.some(keyword => message.includes(keyword));
+  
+  if (hasNumbers || hasMoneySymbols || hasFinancialKeyword) {
+    let confidence = 0.5;
+    
+    if (hasMoneySymbols) confidence = 0.9;
+    else if (hasNumbers && hasFinancialKeyword) confidence = 0.8;
+    else if (hasNumbers) confidence = 0.6;
+    
+    updates.push({
+      field: 'financials.assets',
+      value: userMessage.trim(),
+      confidence
+    });
+    console.log(`💰 Assets extracted: "${userMessage}" (confidence: ${confidence})`);
   }
   
-  // Time horizon - assign ANY response with time-related terms
-  if (!currentProfile.time_horizon) {
-    console.log('Checking for time horizon response...');
-    if (message.includes('year') || message.includes('retire') || message.includes('time') || 
-        message.includes('when') || message.includes('month') || message.includes('yr') ||
-        message.includes('wedding') || message.includes('house') || message.includes('buy') ||
-        /\d+/.test(userMessage)) {
-      console.log('Found time horizon response:', userMessage);
-      updates.push({ field: 'time_horizon', value: userMessage.trim(), confidence: 0.7 });
-    }
+  return updates;
+}
+
+// Time horizon extraction with temporal intelligence
+function extractTimeHorizon(userMessage: string, currentProfile: ClientProfile): ProfileUpdate[] {
+  const updates: ProfileUpdate[] = [];
+  const message = userMessage.toLowerCase();
+  
+  if (currentProfile.time_horizon) return updates;
+  
+  const timeKeywords = ['year', 'month', 'time', 'when', 'timeline', 'horizon', 'period', 'term'];
+  const hasTimeKeyword = timeKeywords.some(keyword => message.includes(keyword));
+  const hasNumbers = /\d+/.test(userMessage);
+  
+  if (hasTimeKeyword || hasNumbers) {
+    let confidence = 0.6;
+    
+    if (hasTimeKeyword && hasNumbers) confidence = 0.85;
+    else if (hasTimeKeyword) confidence = 0.7;
+    
+    updates.push({
+      field: 'time_horizon',
+      value: userMessage.trim(),
+      confidence
+    });
+    console.log(`⏰ Time horizon extracted: "${userMessage}" (confidence: ${confidence})`);
   }
   
-  // Preferences - assign ANY response about investment preferences
-  if (currentProfile.preferences.length < 1) {
-    console.log('Checking for preference response...');
-    if (message.includes('prefer') || message.includes('like') || message.includes('want') || 
-        message.includes('avoid') || message.includes('stock') || message.includes('bond') ||
-        message.includes('option') || message.includes('etf') || message.includes('mutual') ||
-        message.includes('invest') || message.includes('fund') || message.includes('portfolio')) {
-      console.log('Found preference response:', userMessage);
-      updates.push({ field: 'preferences', value: userMessage.trim(), confidence: 0.7 });
-    }
+  return updates;
+}
+
+// Investment preferences extraction
+function extractInvestmentPreferences(userMessage: string, currentProfile: ClientProfile): ProfileUpdate[] {
+  const updates: ProfileUpdate[] = [];
+  const message = userMessage.toLowerCase();
+  
+  if (currentProfile.preferences.length >= 3) return updates;
+  
+  const prefKeywords = ['prefer', 'like', 'want', 'interested', 'stock', 'bond', 'etf', 'fund', 'crypto', 'real estate'];
+  const hasPrefKeyword = prefKeywords.some(keyword => message.includes(keyword));
+  
+  if (hasPrefKeyword) {
+    updates.push({
+      field: 'preferences',
+      value: userMessage.trim(),
+      confidence: 0.75
+    });
+    console.log(`🎨 Investment preference extracted: "${userMessage}"`);
   }
   
-  // Expectations - assign ANY response with percentage or return expectations
-  if (currentProfile.expectations.length < 1) {
-    console.log('Checking for expectation response...');
-    if (message.includes('expect') || message.includes('hope') || message.includes('return') || 
-        message.includes('percent') || message.includes('%') || message.includes('earn') ||
-        message.includes('gain') || message.includes('profit') || /\d+%/.test(userMessage) ||
-        /\d+/.test(userMessage)) {
-      console.log('Found expectation response:', userMessage);
-      updates.push({ field: 'expectations', value: userMessage.trim(), confidence: 0.7 });
-    }
+  return updates;
+}
+
+// Return expectations extraction
+function extractReturnExpectations(userMessage: string, currentProfile: ClientProfile): ProfileUpdate[] {
+  const updates: ProfileUpdate[] = [];
+  const message = userMessage.toLowerCase();
+  
+  if (currentProfile.expectations.length >= 2) return updates;
+  
+  const expectKeywords = ['expect', 'hope', 'return', 'gain', 'profit', 'earn'];
+  const hasExpectKeyword = expectKeywords.some(keyword => message.includes(keyword));
+  const hasPercentage = /%/.test(userMessage) || /\d+%/.test(userMessage);
+  
+  if (hasExpectKeyword || hasPercentage) {
+    let confidence = 0.7;
+    if (hasPercentage) confidence = 0.9;
+    
+    updates.push({
+      field: 'expectations',
+      value: userMessage.trim(),
+      confidence
+    });
+    console.log(`🎯 Return expectation extracted: "${userMessage}" (confidence: ${confidence})`);
   }
   
-  console.log('Total updates found:', updates.length);
   return updates;
 }
 

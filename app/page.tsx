@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useChat } from "@ai-sdk/react"
-import { DefaultChatTransport } from "ai"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,73 +11,51 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Send, Mic, MicOff, BarChart3, User, Bot, Calculator, TrendingUp, CheckCircle, Edit3 } from "lucide-react"
 import { VoiceRecorder } from "@/components/voice-recorder"
 import { ChartGenerator } from "@/components/chart-generator"
+import { ProfileCompletionTracker } from "@/components/profile-completion-tracker"
+import { RAGChat } from "@/components/rag-chat"
 import { ClientProfile, EMPTY_PROFILE, isProfileComplete, isProfileSufficientlyComplete, generateEditableProfileSummary, getProfileCompletionPercentage } from "@/lib/profile-schema"
 import { extractProfileUpdates, applyProfileUpdates } from "@/lib/profile-extractor"
+import { profileTracker, ProfileExtractionProgress } from "@/lib/real-time-profile-tracker"
+
+// Simple user ID generation for session
+function getUserId(): string {
+  return `user_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
+}
+
+// localStorage keys
+const PROFILE_STORAGE_KEY = 'wealthai_profile'
+const USER_ID_STORAGE_KEY = 'wealthai_user_id'
 
 // localStorage helper functions
-const PROFILE_STORAGE_KEY = 'wealth_ai_profile'
-const USER_ID_STORAGE_KEY = 'wealth_ai_user_id'
-
-function saveProfileToStorage(profile: ClientProfile): void {
-  if (typeof window === 'undefined') return
-  
-  try {
-    const profileString = JSON.stringify(profile)
-    console.log('💾 Saving profile to localStorage:', profileString)
-    localStorage.setItem(PROFILE_STORAGE_KEY, profileString)
-    
-    // Verify it was saved
-    const saved = localStorage.getItem(PROFILE_STORAGE_KEY)
-    console.log('✅ Verification - saved profile:', saved)
-  } catch (error) {
-    console.error('Error saving profile to localStorage:', error)
+function saveProfileToStorage(profile: ClientProfile) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile))
   }
 }
 
 function loadProfileFromStorage(): ClientProfile {
-  if (typeof window === 'undefined') return EMPTY_PROFILE
-  
-  try {
-    const saved = localStorage.getItem(PROFILE_STORAGE_KEY)
-    console.log('🔍 Raw localStorage data:', saved)
-    if (saved) {
-      const parsed = JSON.parse(saved) as ClientProfile
-      console.log('✅ Parsed profile from localStorage:', JSON.stringify(parsed, null, 2))
-      return parsed
-    } else {
-      console.log('❌ No data found in localStorage')
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem(PROFILE_STORAGE_KEY)
+    if (stored) {
+      try {
+        return JSON.parse(stored)
+      } catch (error) {
+        console.error('Error parsing stored profile:', error)
+      }
     }
-  } catch (error) {
-    console.error('Error loading profile from localStorage:', error)
   }
-  
-  console.log('🔄 Returning EMPTY_PROFILE')
   return EMPTY_PROFILE
 }
 
-function getUserId(): string {
-  if (typeof window === 'undefined') return ''
-  
-  let userId = localStorage.getItem(USER_ID_STORAGE_KEY)
-  if (!userId) {
-    userId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
-    localStorage.setItem(USER_ID_STORAGE_KEY, userId)
-  }
-  
-  return userId
-}
-
 export default function Home() {
-  const [input, setInput] = useState("")
   const [showChartGenerator, setShowChartGenerator] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
+  const [profileExtractionProgress, setProfileExtractionProgress] = useState<ProfileExtractionProgress | null>(null)
   
-  // Load profile from localStorage on component mount
+  // Initialize profile from localStorage or empty profile
   const [profile, setProfile] = useState<ClientProfile>(() => {
     if (typeof window !== 'undefined') {
-      const loadedProfile = loadProfileFromStorage()
-      console.log('🚀 Initial profile loaded on mount:', JSON.stringify(loadedProfile, null, 2))
-      return loadedProfile
+      return loadProfileFromStorage()
     }
     return EMPTY_PROFILE
   })
@@ -88,109 +65,75 @@ export default function Home() {
   
   const [showSummary, setShowSummary] = useState(false)
   const [profileConfirmed, setProfileConfirmed] = useState(false)
-  const [userId] = useState(() => getUserId())
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  
+  // Initialize userId with localStorage persistence
+  const [userId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(USER_ID_STORAGE_KEY)
+      if (stored) {
+        return stored
+      }
+      const newUserId = getUserId()
+      localStorage.setItem(USER_ID_STORAGE_KEY, newUserId)
+      return newUserId
+    }
+    return 'temp-user-id'
+  })
 
   const { messages, sendMessage, status, error } = useChat({
-    transport: new DefaultChatTransport({
-      api: "/api/conversation",
-      body: {
-        userId: userId,
-      },
-    }),
-    onFinish: (message) => {
-      // Extract profile updates from the latest user message
-      // Since onFinish is called after AI responds, we need to find the most recent user message
+    id: "advisor",
+    api: "/api/conversation",
+    body: {
+      userId,
+    },
+    onFinish: async (message) => {
+      console.log('🎯 onFinish called - simplified version')
+      
+      // Simple client-side profile extraction
       if (messages.length > 0) {
-        // Find the most recent user message by looking backwards
-        let latestUserMessage = null;
-        for (let i = messages.length - 1; i >= 0; i--) {
-          if (messages[i].role === 'user') {
-            latestUserMessage = messages[i];
-            break;
-          }
-        }
-        
-        if (latestUserMessage) {
-          let userContent = ""
-          if (latestUserMessage.parts && Array.isArray(latestUserMessage.parts)) {
-            userContent = latestUserMessage.parts
-              .filter((part: any) => part.type === 'text')
-              .map((part: any) => part.text)
-              .join('')
-          }
+        const latestUserMessage = messages[messages.length - 1];
+        if (latestUserMessage?.role === 'user') {
+          const userContent = latestUserMessage.content || '';
           
-          // Extract and apply profile updates
-          console.log('🔍 Extracting from user message:', userContent)
-          
-          // Get the most current profile from localStorage to ensure we have the latest data
-          const currentProfile = loadProfileFromStorage()
-          console.log('📊 Current profile from localStorage:', JSON.stringify(currentProfile, null, 2))
-          
-          const updates = extractProfileUpdates(userContent, currentProfile)
-          console.log('✅ Profile updates extracted:', updates)
-          
-          if (updates.length > 0) {
-            const updatedProfile = applyProfileUpdates(currentProfile, updates)
-            console.log('📈 Updated profile after applying updates:', JSON.stringify(updatedProfile, null, 2))
+          if (userContent.trim().length > 0) {
+            console.log('🔍 Processing user message:', userContent);
             
-            // Save the updated profile to localStorage immediately
-            saveProfileToStorage(updatedProfile)
-            console.log('💾 Profile saved to localStorage')
+            const currentProfile = profile;
+            const updates = extractProfileUpdates(userContent, currentProfile);
             
-            // Update both state and ref
-            setProfile(updatedProfile)
-            profileRef.current = updatedProfile
-            
-            // Check if profile just became complete or sufficiently complete (75%+) using the updated profile
-            const profileComplete = isProfileComplete(updatedProfile)
-            const profileSufficientlyComplete = isProfileSufficientlyComplete(updatedProfile)
-            console.log('🎯 Profile completion status:', { profileComplete, profileSufficientlyComplete })
-            if ((profileComplete || profileSufficientlyComplete) && !profileConfirmed) {
-              setShowSummary(true)
-              console.log('📋 Summary modal triggered')
+            if (updates.length > 0) {
+              const updatedProfile = applyProfileUpdates(currentProfile, updates);
+              setProfile(updatedProfile);
+              profileRef.current = updatedProfile;
+              saveProfileToStorage(updatedProfile);
+              
+              console.log('✅ Profile updated with', updates.length, 'changes');
             }
-          } else {
-            console.log('❌ No profile updates found')
-            // Still save the current profile
-            saveProfileToStorage(currentProfile)
           }
         }
       }
     },
     onError: (error) => {
-      console.error('❌ Chat error:', error)
-    },
+      console.error('❌ Chat error:', error);
+    }
   })
 
-  // Load profile on mount
-  useEffect(() => {
-    const savedProfile = loadProfileFromStorage()
-    console.log('🔄 Loading profile from localStorage:', JSON.stringify(savedProfile, null, 2))
-    if (savedProfile && savedProfile !== EMPTY_PROFILE) {
-      setProfile(savedProfile)
-      profileRef.current = savedProfile
-      console.log('✅ Profile loaded and set:', JSON.stringify(savedProfile, null, 2))
-    } else {
-      console.log('❌ No saved profile found or profile is empty')
-      // Initialize profileRef with the current profile state
-      profileRef.current = profile
-    }
-  }, [])
+  // Local submit to avoid any default endpoint quirks
+  const [text, setText] = useState("")
 
-  // Ensure profileRef is always synchronized with profile state
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!text.trim() || status === "streaming" || status === "submitted") return
+    sendMessage({ text })
+    setText("")
+  }
+
+  // Initialize profile ref with current profile state
   useEffect(() => {
     profileRef.current = profile
-    console.log('🔄 ProfileRef synchronized with profile state:', JSON.stringify(profile, null, 2))
   }, [profile])
 
-  // Save profile whenever it changes and update ref
-  useEffect(() => {
-    console.log('🔄 Profile state changed:', JSON.stringify(profile, null, 2))
-    profileRef.current = profile
-    console.log('💾 Saving profile to localStorage:', JSON.stringify(profile, null, 2))
-    saveProfileToStorage(profile)
-  }, [profile])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -214,17 +157,12 @@ export default function Home() {
     return () => container.removeEventListener('scroll', handleScroll)
   }, [messages])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || status === "streaming" || status === "submitted") return
+  // Note: using handleSubmit from useChat
 
-    // Load the current profile before sending the message
-    const currentProfile = loadProfileFromStorage()
-    console.log('📤 Loading profile before sending message:', JSON.stringify(currentProfile, null, 2))
-    
-    sendMessage({ text: input })
-    setInput("")
-  }
+  // Debug chat status
+  useEffect(() => {
+    console.log('💬 Chat Status Changed:', { status, error, messagesCount: messages.length })
+  }, [status, error, messages.length])
 
   const handleConfirmProfile = () => {
     setProfileConfirmed(true)
@@ -238,76 +176,83 @@ export default function Home() {
   }
 
   const handleClearProfile = () => {
+    setProfile(EMPTY_PROFILE)
+    profileRef.current = EMPTY_PROFILE
+    setProfileConfirmed(false)
+    setShowSummary(false)
+    saveProfileToStorage(EMPTY_PROFILE)
     if (typeof window !== 'undefined') {
       localStorage.removeItem(PROFILE_STORAGE_KEY)
-      setProfile(EMPTY_PROFILE)
-      profileRef.current = EMPTY_PROFILE
-      setProfileConfirmed(false)
-      setShowSummary(false)
     }
+    console.log('🗑️ Profile cleared - starting fresh!')
   }
 
   const handleCheckProfile = () => {
     console.log('🔍 Check Profile button clicked!')
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(PROFILE_STORAGE_KEY)
-      console.log('🔍 Raw localStorage data:', stored)
-      console.log('🔍 Parsed localStorage profile:', stored ? JSON.parse(stored) : null)
-      console.log('🔍 Current React profile state:', JSON.stringify(profile, null, 2))
-      console.log('🔍 Current profileRef:', JSON.stringify(profileRef.current, null, 2))
-      
-      // Also check all localStorage keys
-      console.log('🔍 All localStorage keys:', Object.keys(localStorage))
-      console.log('🔍 All localStorage values:', Object.keys(localStorage).map(key => ({ key, value: localStorage.getItem(key) })))
-    } else {
-      console.log('❌ Window is undefined - running on server')
-    }
+    console.log('🔍 Current React profile state:', JSON.stringify(profile, null, 2))
+    console.log('🔍 Current profileRef:', JSON.stringify(profileRef.current, null, 2))
+    console.log('🔍 localStorage profile:', localStorage.getItem(PROFILE_STORAGE_KEY))
+    console.log('🔍 Profile completion percentage:', getProfileCompletionPercentage(profile))
   }
 
   const handleRefreshProfile = () => {
-    if (typeof window !== 'undefined') {
-      const storedProfile = loadProfileFromStorage()
-      console.log('🔄 Refreshing profile from localStorage:', JSON.stringify(storedProfile, null, 2))
-      setProfile(storedProfile)
-      profileRef.current = storedProfile
-      console.log('✅ Profile refreshed and synchronized')
+    console.log('🔄 Current profile state:', JSON.stringify(profile, null, 2))
+    console.log('🔄 ProfileRef state:', JSON.stringify(profileRef.current, null, 2))
+    console.log('✅ Profile state displayed')
+  }
+
+  const handleTestParseProfile = () => {
+    console.log('🧪 Testing profile parsing...')
+    const testUserMessage = "I want to buy a house in 5 years"
+    console.log('📊 Current profile before test:', JSON.stringify(profile, null, 2))
+    
+    const updates = extractProfileUpdates(testUserMessage, profile)
+    console.log('✅ Test profile updates extracted:', updates)
+    
+    if (updates.length > 0) {
+      const updatedProfile = applyProfileUpdates(profile, updates)
+      console.log('📈 Test updated profile:', JSON.stringify(updatedProfile, null, 2))
+      
+      // Apply the updates to the actual profile
+      setProfile(updatedProfile)
+      profileRef.current = updatedProfile
+      saveProfileToStorage(updatedProfile)
+      console.log('✅ Test profile updates applied')
+    } else {
+      console.log('❌ No updates found in test')
     }
   }
 
   const handleTestProfileUpdate = () => {
     console.log('🧪 Test Profile button clicked!')
-    if (typeof window !== 'undefined') {
-      const testProfile = {
-        goals: { short_term: 'test goal', medium_term: null, long_term: null },
-        risk: { tolerance: 'moderate', history: null },
-        financials: { income: null, assets: '100k', expenses: null },
-        time_horizon: '5 years',
-        preferences: ['stocks'],
-        expectations: ['10%']
-      }
-      console.log('🧪 Testing profile update with:', JSON.stringify(testProfile, null, 2))
-      setProfile(testProfile)
-      profileRef.current = testProfile
-      saveProfileToStorage(testProfile)
-      console.log('✅ Test profile saved')
+    const testProfile = {
+      goals: { short_term: 'test goal', medium_term: null, long_term: null },
+      risk: { tolerance: 'moderate', history: null },
+      financials: { income: null, assets: '100k', expenses: null },
+      time_horizon: '5 years',
+      preferences: ['stocks'],
+      expectations: ['10%']
     }
+    console.log('🧪 Testing profile update with:', JSON.stringify(testProfile, null, 2))
+    setProfile(testProfile)
+    profileRef.current = testProfile
+    console.log('✅ Test profile set')
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-slate-800 mb-2">
-              WealthAI Advisor
-            </h1>
-            <p className="text-slate-600 text-lg">
-              Your personal AI-powered wealth management assistant
-            </p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col">
+      <div className="container mx-auto px-4 py-4 flex-1 flex flex-col max-w-6xl">
+        {/* Header - Always visible */}
+        <div className="text-center mb-4 flex-shrink-0">
+          <h1 className="text-2xl font-bold text-slate-800 mb-1">
+            WealthAI Advisor
+          </h1>
+          <p className="text-slate-600 text-sm">
+            Your personal AI-powered wealth management assistant
+          </p>
             
             {/* Debug Section */}
-            <div className="mt-4 flex justify-center gap-2 flex-wrap">
+          <div className="mt-2 flex justify-center gap-2 flex-wrap">
               <Button 
                 onClick={handleCheckProfile}
                 variant="outline"
@@ -332,6 +277,15 @@ export default function Home() {
               >
                 🧪 Test Profile
               </Button>
+              
+              <Button 
+                onClick={handleTestParseProfile}
+                variant="outline"
+                size="sm"
+                className="text-xs text-purple-600"
+              >
+                🔍 Test Parse
+              </Button>
               <Button 
                 onClick={handleClearProfile}
                 variant="outline"
@@ -343,9 +297,10 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Main Content */}
-          <Tabs defaultValue="chat" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
+        {/* Main Content - Fixed height container */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <Tabs defaultValue="chat" className="w-full flex-1 flex flex-col">
+            <TabsList className="grid w-full grid-cols-4 mb-3 flex-shrink-0">
               <TabsTrigger value="chat" className="flex items-center gap-2">
                 <Bot className="h-4 w-4" />
                 Chat Advisor
@@ -354,13 +309,17 @@ export default function Home() {
                 <TrendingUp className="h-4 w-4" />
                 Market News
               </TabsTrigger>
+              <TabsTrigger value="ai-rag" className="flex items-center gap-2">
+                <Bot className="h-4 w-4" />
+                AI-RAG
+              </TabsTrigger>
               <TabsTrigger value="tools" className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" />
                 Financial Tools
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="chat" className="space-y-6">
+            <TabsContent value="chat" className="flex-1 flex flex-col min-h-0">
               {/* Profile Summary Modal */}
               {showSummary && (isProfileComplete(profile) || isProfileSufficientlyComplete(profile)) && !profileConfirmed && (
                 <Card className="border-green-200 bg-green-50">
@@ -406,8 +365,19 @@ export default function Home() {
                 </Card>
               )}
 
-              {/* Chat Interface */}
-              <Card className="h-[600px] flex flex-col overflow-hidden">
+              {/* Main Layout with Profile Tracker and Chat */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0" style={{height: 'calc(100vh - 200px)'}}>
+                {/* Profile Completion Tracker - Left Sidebar */}
+                <div className="lg:col-span-1 flex flex-col min-h-0">
+                  <ProfileCompletionTracker 
+                    profile={profile}
+                    className="flex-1 min-h-0"
+                  />
+                </div>
+
+                {/* Chat Interface - Right Main Area */}
+                <div className="lg:col-span-2 flex flex-col min-h-0">
+                  <Card className="flex-1 flex flex-col overflow-hidden min-h-0">
                 <CardHeader className="pb-4 flex-shrink-0 border-b bg-white">
                         <CardTitle className="flex items-center gap-2">
                           <Bot className="h-5 w-5" />
@@ -442,15 +412,53 @@ export default function Home() {
                       </div>
                     )}
                     <div className="space-y-4">
-                    {messages.length === 0 ? (
-                            <div className="text-center text-slate-500 py-8">
-                              <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                              <p>Start a conversation with your AI wealth advisor</p>
-                              <p className="text-sm mt-2">
-                                Ask about investments, portfolio optimization, or financial planning
-                              </p>
+                      {/* Real-time Profile Extraction Progress */}
+                      {profileExtractionProgress && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-blue-900">
+                              Profile Analysis in Progress...
+                            </span>
+                            <span className="text-xs text-blue-600">
+                              {profileExtractionProgress.progress}%
+                            </span>
+                          </div>
+                          <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                              style={{ width: `${profileExtractionProgress.progress}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-blue-700">
+                            {profileExtractionProgress.message}
+                          </p>
+                          {profileExtractionProgress.extractedFields.length > 0 && (
+                            <div className="mt-2">
+                              <span className="text-xs text-blue-600">Updating: </span>
+                              <span className="text-xs text-blue-800 font-medium">
+                                {profileExtractionProgress.extractedFields.join(', ')}
+                              </span>
                             </div>
-                    ) : (
+                          )}
+                        </div>
+                      )}
+                    
+                      {messages.length === 0 ? (
+                        <div className="text-center text-slate-500 py-8">
+                          <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p className="mb-4">Welcome to your AI wealth advisor</p>
+                          <p className="text-sm mb-4">
+                            I'll help you create a personalized financial plan. Let's start by building your profile.
+                          </p>
+                          <Button
+                            onClick={() => sendMessage({ text: "Hello, I'm ready to start building my financial profile" })}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            <Bot className="w-4 h-4 mr-2" />
+                            Start Profile Building
+                          </Button>
+                        </div>
+                      ) : (
                       messages.map((message) => (
                         <div
                           key={message.id}
@@ -473,10 +481,12 @@ export default function Home() {
                             }`}
                           >
                             <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                              {message.parts
-                                ?.filter((part: any) => part.type === 'text')
-                                ?.map((part: any) => part.text)
-                                ?.join('') || ''}
+                              {message.content ?? (
+                                message.parts
+                                  ?.filter((part: any) => part.type === 'text')
+                                  ?.map((part: any) => part.text)
+                                  ?.join('') || ''
+                              )}
                             </p>
                           </div>
                           {message.role === "user" && (
@@ -519,25 +529,34 @@ export default function Home() {
                     )}
 
                     {/* Input Form */}
-                    <form onSubmit={handleSubmit} className="flex gap-2">
+                    <form onSubmit={handleSend} className="flex gap-2">
                     <Input
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
                       placeholder="Ask about investments, portfolio optimization, or financial planning..."
                       className="flex-1"
                       disabled={status === "streaming" || status === "submitted"}
                     />
                     <Button
                       type="submit"
-                      disabled={!input.trim() || status === "streaming" || status === "submitted"}
+                      disabled={!text.trim() || status === "streaming" || status === "submitted"}
                       className="px-6"
                     >
                       <Send className="h-4 w-4" />
                     </Button>
                     </form>
+                    
+                    {/* Debug Info */}
+                    {process.env.NODE_ENV === 'development' && (
+                      <div className="mt-2 text-xs text-gray-500">
+                        Status: {status} | Input: "{text}" | Messages: {messages.length} | Error: {error?.message || 'none'}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
-              </Card>
+                  </Card>
+                </div>
+              </div>
             </TabsContent>
 
             <TabsContent value="market" className="space-y-6">
@@ -578,6 +597,10 @@ export default function Home() {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="ai-rag" className="flex-1 flex flex-col min-h-0">
+              <RAGChat className="flex-1 min-h-0" />
             </TabsContent>
 
             <TabsContent value="tools" className="space-y-6">
