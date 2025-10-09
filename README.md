@@ -298,6 +298,20 @@ The RAG system provides document-based Q&A capabilities, allowing users to query
 - **Complete Isolation**: Separate from advisor chat to prevent cross-contamination
 - **Mock Implementation**: Currently uses mock financial documents for demonstration
 
+## Behavior Update (Sep 2025)
+
+- Simplified, conversational system prompt for RAG to reduce brittleness and generic replies
+- Relaxed greeting filter: only exact greetings (e.g., "hi", "hello") return the canned onboarding line; short queries like "IRA" now pass through to retrieval
+- Lower temperature to 0.1 for focused, factual answers; capped response length (`maxTokens: 500`)
+- Sources are returned via the `X-Document-Sources` response header and displayed in the UI
+- Tip: If you get the greeting line, try a more specific query or avoid pure greeting words
+
+Example queries that work well now:
+- "IRA"
+- "Roth IRA vs Traditional IRA"
+- "Portfolio diversification basics"
+- "What is wealth management?"
+
 ## Architecture
 
 ```typescript
