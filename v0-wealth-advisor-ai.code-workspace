@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "typescript-next-starter",
+			"path": "../typescript-next-starter"
+		},
+		{
+			"name": "booking-agent-ts",
+			"path": "../booking-agent-ts"
+		}
+	],
+	"settings": {}
+}

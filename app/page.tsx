@@ -13,6 +13,7 @@ import { VoiceRecorder } from "@/components/voice-recorder"
 import { ChartGenerator } from "@/components/chart-generator"
 import { ProfileCompletionTracker } from "@/components/profile-completion-tracker"
 import { RAGChat } from "@/components/rag-chat"
+import { QuickReplies } from "@/components/ui/quick-replies"
 import { ClientProfile, EMPTY_PROFILE, isProfileComplete, isProfileSufficientlyComplete, generateEditableProfileSummary, getProfileCompletionPercentage } from "@/lib/profile-schema"
 import { extractProfileUpdates, applyProfileUpdates } from "@/lib/profile-extractor"
 import { profileTracker, ProfileExtractionProgress } from "@/lib/real-time-profile-tracker"
@@ -22,9 +23,27 @@ function getUserId(): string {
   return `user_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
 }
 
+// Parse quick reply buttons from message content
+function parseQuickReplies(content: string): { text: string; buttons: string[] | null } {
+  const buttonPattern = /\[BUTTONS:\s*([^\]]+)\]/gi  // Added 'g' flag to match all occurrences
+  const match = content.match(buttonPattern)
+  
+  if (match && match.length > 0) {
+    // Use the first match only
+    const firstMatch = match[0]
+    const buttonsText = firstMatch.replace(/\[BUTTONS:\s*/i, '').replace(/\]/g, '')
+    const buttons = buttonsText.split('|').map(b => b.trim()).filter(b => b.length > 0)
+    // Remove ALL button patterns from text
+    const cleanText = content.replace(buttonPattern, '').trim()
+    return { text: cleanText, buttons }
+  }
+  
+  return { text: content, buttons: null }
+}
+
 // localStorage keys
-const PROFILE_STORAGE_KEY = 'wealthai_profile'
-const USER_ID_STORAGE_KEY = 'wealthai_user_id'
+const PROFILE_STORAGE_KEY = 'stockai_profile'
+const USER_ID_STORAGE_KEY = 'stockai_user_id'
 
 // localStorage helper functions
 function saveProfileToStorage(profile: ClientProfile) {
@@ -89,6 +108,8 @@ export default function Home() {
     },
     onFinish: async (message) => {
       console.log('🎯 onFinish called - simplified version')
+      console.log('📊 Messages array length:', messages.length)
+      console.log('📊 Unique message IDs:', new Set(messages.map(m => m.id)).size)
       
       // Simple client-side profile extraction
       if (messages.length > 0) {
@@ -245,10 +266,10 @@ export default function Home() {
         {/* Header - Always visible */}
         <div className="text-center mb-4 flex-shrink-0">
           <h1 className="text-2xl font-bold text-slate-800 mb-1">
-            WealthAI Advisor
+            STOCK-AI Advisor
           </h1>
           <p className="text-slate-600 text-sm">
-            Your personal AI-powered wealth management assistant
+            Your personal AI-powered stock trading assistant
           </p>
             
             {/* Debug Section */}
@@ -381,7 +402,7 @@ export default function Home() {
                 <CardHeader className="pb-4 flex-shrink-0 border-b bg-white">
                         <CardTitle className="flex items-center gap-2">
                           <Bot className="h-5 w-5" />
-                          Chat with WealthAI
+                          Chat with STOCK-AI
                         </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col p-0 min-h-0">
@@ -446,12 +467,12 @@ export default function Home() {
                       {messages.length === 0 ? (
                         <div className="text-center text-slate-500 py-8">
                           <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p className="mb-4">Welcome to your AI wealth advisor</p>
+                          <p className="mb-4">Welcome to your STOCK-AI Advisor</p>
                           <p className="text-sm mb-4">
-                            I'll help you create a personalized financial plan. Let's start by building your profile.
+                            I'll help you create a personalized trading strategy. Let's start by building your profile.
                           </p>
                           <Button
-                            onClick={() => sendMessage({ text: "Hello, I'm ready to start building my financial profile" })}
+                            onClick={() => sendMessage({ text: "Hello, I'm ready to start building my trading profile" })}
                             className="bg-blue-600 hover:bg-blue-700 text-white"
                           >
                             <Bot className="w-4 h-4 mr-2" />
@@ -459,45 +480,76 @@ export default function Home() {
                           </Button>
                         </div>
                       ) : (
-                      messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`flex gap-3 ${
-                            message.role === "user" ? "justify-end" : "justify-start"
-                          }`}
-                        >
-                          {message.role === "assistant" && (
-                            <Avatar className="h-8 w-8 flex-shrink-0">
-                              <AvatarFallback className="bg-blue-100 text-blue-600">
-                                <Bot className="h-4 w-4" />
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
-                          <div
-                            className={`max-w-[80%] rounded-lg px-4 py-3 break-words shadow-sm ${
-                              message.role === "user"
-                                ? "bg-blue-600 text-white ml-auto"
-                                : "bg-white border border-slate-200 text-slate-800"
-                            }`}
-                          >
-                            <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                              {message.content ?? (
-                                message.parts
-                                  ?.filter((part: any) => part.type === 'text')
-                                  ?.map((part: any) => part.text)
-                                  ?.join('') || ''
+                      // Deduplicate messages by ID
+                      Array.from(new Map(messages.map(m => [m.id, m])).values())
+                        .map((message, index, deduplicatedMessages) => {
+                        // Extract content
+                        const rawContent = message.content ?? (
+                          message.parts
+                            ?.filter((part: any) => part.type === 'text')
+                            ?.map((part: any) => part.text)
+                            ?.join('') || ''
+                        )
+                        
+                        // Parse buttons for assistant messages
+                        const { text, buttons } = message.role === "assistant" 
+                          ? parseQuickReplies(rawContent)
+                          : { text: rawContent, buttons: null }
+                        
+                        // Only show buttons on the last assistant message and when not streaming
+                        const showButtons = buttons && message.role === "assistant" && 
+                                           index === deduplicatedMessages.length - 1 && 
+                                           status === "ready"
+                        
+                        return (
+                          <div key={message.id}>
+                            <div
+                              className={`flex gap-3 ${
+                                message.role === "user" ? "justify-end" : "justify-start"
+                              }`}
+                            >
+                              {message.role === "assistant" && (
+                                <Avatar className="h-8 w-8 flex-shrink-0">
+                                  <AvatarFallback className="bg-blue-100 text-blue-600">
+                                    <Bot className="h-4 w-4" />
+                                  </AvatarFallback>
+                                </Avatar>
                               )}
-                            </p>
+                              <div className={`flex flex-col gap-2 max-w-[80%]`}>
+                                <div
+                                  className={`rounded-lg px-4 py-3 break-words shadow-sm ${
+                                    message.role === "user"
+                                      ? "bg-blue-600 text-white ml-auto"
+                                      : "bg-white border border-slate-200 text-slate-800"
+                                  }`}
+                                >
+                                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                                    {text}
+                                  </p>
+                                </div>
+                                
+                                {/* Quick Reply Buttons */}
+                                {showButtons && (
+                                  <QuickReplies
+                                    options={buttons.map(b => ({ text: b }))}
+                                    onSelect={(value) => {
+                                      sendMessage({ text: value })
+                                    }}
+                                    disabled={status !== "ready"}
+                                  />
+                                )}
+                              </div>
+                              {message.role === "user" && (
+                                <Avatar className="h-8 w-8 flex-shrink-0">
+                                  <AvatarFallback className="bg-slate-100 text-slate-600">
+                                    <User className="h-4 w-4" />
+                                  </AvatarFallback>
+                                </Avatar>
+                              )}
+                            </div>
                           </div>
-                          {message.role === "user" && (
-                            <Avatar className="h-8 w-8 flex-shrink-0">
-                              <AvatarFallback className="bg-slate-100 text-slate-600">
-                                <User className="h-4 w-4" />
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
-                        </div>
-                      ))
+                        )
+                      })
                     )}
                     {status === "streaming" && (
                       <div className="flex gap-3 justify-start">

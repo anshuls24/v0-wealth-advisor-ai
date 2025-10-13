@@ -1,15 +1,15 @@
-# WealthAI Advisor
+# STOCK-AI Advisor
 
-A sophisticated, production-ready AI-powered wealth management assistant that demonstrates advanced capabilities including intelligent financial planning, user profile management, market analysis, and personalized investment recommendations. Built with modern web technologies and deployed to production.
+A sophisticated, production-ready AI-powered stock trading advisor that demonstrates advanced capabilities including intelligent strategy development, trader profile management, market analysis, and personalized trading recommendations. Built with modern web technologies and deployed to production.
 
 🎯 **Agent Capabilities Summary**
 
-The WealthAI Advisor is a fully autonomous intelligent financial system that:
+The STOCK-AI Advisor is a fully autonomous intelligent stock trading system that:
 
-- **Understands Financial Context** - Analyzes user profiles and determines optimal investment strategies
-- **Manages User Profiles** - Collects and maintains comprehensive financial profiles with flexible requirements
+- **Understands Trading Context** - Analyzes trader profiles and determines optimal trading strategies
+- **Manages Trader Profiles** - Collects and maintains comprehensive trading profiles with flexible requirements
 - **Provides Market Intelligence** - Real-time market updates and news analysis with web search capabilities
-- **Generates Personalized Recommendations** - Tailored investment advice based on individual risk tolerance and goals
+- **Generates Personalized Recommendations** - Tailored trading advice based on individual risk tolerance and goals
 - **Tracks Progress** - Continuous profile completion monitoring and summary generation
 - **Self-Optimizes** - Adapts questioning strategy based on user responses and profile completeness
 
@@ -100,7 +100,7 @@ Open browser: Navigate to http://localhost:3000
 
 ## First Steps
 
-1. **Start Chatting**: Begin a conversation with the AI wealth advisor
+1. **Start Chatting**: Begin a conversation with the STOCK-AI advisor
 2. **Build Your Profile**: Answer questions about your financial goals, risk tolerance, and situation
 3. **Get Recommendations**: Receive personalized investment advice based on your profile
 4. **Explore Market News**: Check real-time market updates and analysis
@@ -141,7 +141,7 @@ Open browser: Navigate to http://localhost:3000
 📦 **API Endpoints**
 
 ## POST /api/conversation
-Main chat endpoint for the wealth advisor.
+Main chat endpoint for the STOCK-AI advisor.
 
 **Request:**
 ```json
