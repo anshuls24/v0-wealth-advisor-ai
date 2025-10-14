@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: stock-ai-advisor
+    env: node
+    region: oregon # Change to your preferred region (oregon, frankfurt, singapore, ohio)
+    plan: starter # $7/month - or use 'free' for 750 hrs/month (note: free tier sleeps after 15 min inactivity)
+    
+    # Build configuration
+    buildCommand: |
+      # Install Python and uv for Polygon MCP server
+      apt-get update && apt-get install -y python3 python3-pip
+      pip3 install uv
+      # Install Node.js dependencies
+      npm install -g pnpm
+      pnpm install
+      pnpm build
+    
+    # Start command
+    startCommand: pnpm start
+    
+    # Auto-deploy on push to main
+    autoDeploy: true
+    branch: main
+    
+    # Health check (optional but recommended)
+    healthCheckPath: /
+    
+    # Environment variables (set these in Render Dashboard)
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false # Set manually in dashboard for security
+      - key: POLYGON_API_KEY
+        sync: false # Set manually in dashboard for security
+

@@ -228,28 +228,43 @@ Market news and analysis endpoint with web search.
 
 🚢 **Deployment**
 
-## Railway Deployment (Recommended for Full MCP Support)
+## Render Deployment (Recommended - Best Value!) ⭐
 
-**Best for**: Full Stock MCP Server functionality with Polygon.io integration
+**Best for**: Full Stock MCP Server functionality with Polygon.io integration at the best price!
 
-See detailed guide: [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)
+See detailed guide: [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md)
 
 **Quick Start:**
 1. Push to GitHub: `git push origin main`
-2. Go to [railway.app](https://railway.app)
-3. Click "Deploy from GitHub repo"
+2. Go to [render.com](https://render.com)
+3. Click "New +" → "Web Service"
 4. Select your repository
 5. Add environment variables:
    - `OPENAI_API_KEY`: Your OpenAI API key
    - `POLYGON_API_KEY`: Your Polygon.io API key
-6. Railway auto-deploys! 🚀
+6. Click "Create Web Service" - Render auto-deploys! 🚀
 
-**Why Railway?**
+**Why Render?**
 - ✅ Supports STDIO-based MCP servers (Polygon.io integration works!)
 - ✅ Python/uvx support built-in
+- ✅ **Free tier**: 750 hrs/month (great for testing!)
+- ✅ **Starter tier**: Only $7/month (always-on)
 - ✅ No serverless timeouts
 - ✅ Auto-deploy from GitHub
-- ✅ ~$10-15/month
+
+---
+
+## Railway Deployment (Alternative)
+
+**Best for**: Excellent developer experience
+
+See detailed guide: [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)
+
+**Why Railway?**
+- ✅ Supports STDIO-based MCP servers
+- ✅ Python/uvx support built-in
+- ✅ Great DX (developer experience)
+- ⚠️ ~$10-15/month (no free tier)
 
 ---
 
