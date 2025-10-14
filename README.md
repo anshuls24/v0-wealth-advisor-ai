@@ -240,9 +240,10 @@ Import to Vercel:
 2. Import your repository
 3. Add environment variables:
    - `OPENAI_API_KEY`: Your OpenAI API key
+   - `POLYGON_API_KEY`: Your Polygon.io API key (optional, for Stock MCP Server)
 
 ⚠️ **Important Note about Stock MCP Server:**
-The Stock MCP Server (Polygon.io integration) **only works in local development** because it requires spawning a Python subprocess (`uvx`), which is not supported on Vercel's serverless platform. This feature is automatically hidden in production. For production use, consider switching to Polygon.io's REST API or deploying to a VPS (Railway, Render, DigitalOcean).
+The Stock MCP Server (Polygon.io integration) requires spawning a Python subprocess (`uvx`), which is not supported on Vercel's serverless platform. On production (Vercel), clicking the Stock MCP Server button will show a "tools temporarily unavailable" message. Full MCP functionality is only available in local development. For production use of real-time stock data, consider switching to Polygon.io's REST API or deploying to a VPS (Railway, Render, DigitalOcean).
 
 ## Environment Variables
 
