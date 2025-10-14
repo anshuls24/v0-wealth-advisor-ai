@@ -341,12 +341,15 @@ export default function Home() {
                   Financial Tools
                 </TabsTrigger>
               </TabsList>
-              <Link href="/stock-advisor" target="_blank">
-                <Button variant="default" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 whitespace-nowrap">
-                  <Database className="h-4 w-4" />
-                  Stock MCP Server
-                </Button>
-              </Link>
+              {/* Stock MCP Server - Only works in local development (requires STDIO/uvx) */}
+              {process.env.NODE_ENV === 'development' && (
+                <Link href="/stock-advisor" target="_blank">
+                  <Button variant="default" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 whitespace-nowrap">
+                    <Database className="h-4 w-4" />
+                    Stock MCP Server (Dev Only)
+                  </Button>
+                </Link>
+              )}
             </div>
 
             <TabsContent value="chat" className="flex-1 flex flex-col min-h-0">
