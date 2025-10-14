@@ -20,9 +20,16 @@ export class PolygonMCPClient {
   constructor(config: PolygonMCPConfig) {
     this.apiKey = config.apiKey;
     this.transport = config.transport || "stdio";
-    // Use absolute path to uvx - Next.js dev server doesn't inherit shell PATH
-    this.pythonPath = config.pythonPath || "/Users/anshul/.local/bin/uvx";
-    console.log(`🔍 Polygon MCP: Using uvx path: ${this.pythonPath}`);
+    
+    // Environment-aware uvx path:
+    // - Production (Railway, Render, etc.): 'uvx' is in PATH
+    // - Local development: Use absolute path (Next.js doesn't inherit shell PATH)
+    this.pythonPath = config.pythonPath || 
+      (process.env.NODE_ENV === 'production' 
+        ? 'uvx' 
+        : '/Users/anshul/.local/bin/uvx');
+    
+    console.log(`🔍 Polygon MCP: Environment: ${process.env.NODE_ENV}, Using uvx path: ${this.pythonPath}`);
   }
 
   /**

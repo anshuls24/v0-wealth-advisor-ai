@@ -228,7 +228,34 @@ Market news and analysis endpoint with web search.
 
 🚢 **Deployment**
 
-## Vercel Deployment (Recommended)
+## Railway Deployment (Recommended for Full MCP Support)
+
+**Best for**: Full Stock MCP Server functionality with Polygon.io integration
+
+See detailed guide: [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)
+
+**Quick Start:**
+1. Push to GitHub: `git push origin main`
+2. Go to [railway.app](https://railway.app)
+3. Click "Deploy from GitHub repo"
+4. Select your repository
+5. Add environment variables:
+   - `OPENAI_API_KEY`: Your OpenAI API key
+   - `POLYGON_API_KEY`: Your Polygon.io API key
+6. Railway auto-deploys! 🚀
+
+**Why Railway?**
+- ✅ Supports STDIO-based MCP servers (Polygon.io integration works!)
+- ✅ Python/uvx support built-in
+- ✅ No serverless timeouts
+- ✅ Auto-deploy from GitHub
+- ✅ ~$10-15/month
+
+---
+
+## Vercel Deployment (For Main App Only)
+
+**Best for**: Fast deployment without Stock MCP Server
 
 Push to GitHub:
 ```bash
@@ -240,10 +267,9 @@ Import to Vercel:
 2. Import your repository
 3. Add environment variables:
    - `OPENAI_API_KEY`: Your OpenAI API key
-   - `POLYGON_API_KEY`: Your Polygon.io API key (optional, for Stock MCP Server)
 
-⚠️ **Important Note about Stock MCP Server:**
-The Stock MCP Server (Polygon.io integration) requires spawning a Python subprocess (`uvx`), which is not supported on Vercel's serverless platform. On production (Vercel), clicking the Stock MCP Server button will show a "tools temporarily unavailable" message. Full MCP functionality is only available in local development. For production use of real-time stock data, consider switching to Polygon.io's REST API or deploying to a VPS (Railway, Render, DigitalOcean).
+⚠️ **Important Note about Stock MCP Server on Vercel:**
+The Stock MCP Server (Polygon.io integration) requires spawning a Python subprocess (`uvx`), which is **not supported** on Vercel's serverless platform. The button will appear but show a "tools temporarily unavailable" error when clicked. For full MCP functionality, deploy to Railway instead.
 
 ## Environment Variables
 
