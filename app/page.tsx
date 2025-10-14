@@ -8,12 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Send, Mic, MicOff, BarChart3, User, Bot, Calculator, TrendingUp, CheckCircle, Edit3 } from "lucide-react"
+import { Send, Mic, MicOff, BarChart3, User, Bot, Calculator, TrendingUp, CheckCircle, Edit3, Database } from "lucide-react"
 import { VoiceRecorder } from "@/components/voice-recorder"
 import { ChartGenerator } from "@/components/chart-generator"
 import { ProfileCompletionTracker } from "@/components/profile-completion-tracker"
 import { RAGChat } from "@/components/rag-chat"
 import { QuickReplies } from "@/components/ui/quick-replies"
+import Link from "next/link"
 import { ClientProfile, EMPTY_PROFILE, isProfileComplete, isProfileSufficientlyComplete, generateEditableProfileSummary, getProfileCompletionPercentage } from "@/lib/profile-schema"
 import { extractProfileUpdates, applyProfileUpdates } from "@/lib/profile-extractor"
 import { profileTracker, ProfileExtractionProgress } from "@/lib/real-time-profile-tracker"
@@ -321,24 +322,32 @@ export default function Home() {
         {/* Main Content - Fixed height container */}
         <div className="flex-1 flex flex-col min-h-0">
           <Tabs defaultValue="chat" className="w-full flex-1 flex flex-col">
-            <TabsList className="grid w-full grid-cols-4 mb-3 flex-shrink-0">
-              <TabsTrigger value="chat" className="flex items-center gap-2">
-                <Bot className="h-4 w-4" />
-                Chat Advisor
-              </TabsTrigger>
-              <TabsTrigger value="market" className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Market News
-              </TabsTrigger>
-              <TabsTrigger value="ai-rag" className="flex items-center gap-2">
-                <Bot className="h-4 w-4" />
-                AI-RAG
-              </TabsTrigger>
-              <TabsTrigger value="tools" className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" />
-                Financial Tools
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex items-center gap-2 mb-3 flex-shrink-0">
+              <TabsList className="grid flex-1 grid-cols-4">
+                <TabsTrigger value="chat" className="flex items-center gap-2">
+                  <Bot className="h-4 w-4" />
+                  Chat Advisor
+                </TabsTrigger>
+                <TabsTrigger value="market" className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Market News
+                </TabsTrigger>
+                <TabsTrigger value="ai-rag" className="flex items-center gap-2">
+                  <Bot className="h-4 w-4" />
+                  AI-RAG
+                </TabsTrigger>
+                <TabsTrigger value="tools" className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Financial Tools
+                </TabsTrigger>
+              </TabsList>
+              <Link href="/stock-advisor" target="_blank">
+                <Button variant="default" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 whitespace-nowrap">
+                  <Database className="h-4 w-4" />
+                  Stock MCP Server
+                </Button>
+              </Link>
+            </div>
 
             <TabsContent value="chat" className="flex-1 flex flex-col min-h-0">
               {/* Profile Summary Modal */}

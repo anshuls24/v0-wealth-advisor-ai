@@ -28,9 +28,10 @@ The STOCK-AI Advisor is a fully autonomous intelligent stock trading system that
 ## Core Capabilities
 
 🤖 **Intelligent Chat Advisor**: Sophisticated AI agent that collects user profiles and provides personalized financial advice
+📈 **Stock Market Advisor (NEW)**: Real-time stock analysis with Polygon.io MCP integration for live market data
 🌐 **Market News & Analysis**: Real-time market updates with web search integration and source citations
 📊 **Financial Tools**: Comprehensive suite of financial calculators and chart generators
-🔍 **RAG System (NEW)**: Retrieval-Augmented Generation for document-based financial Q&A with source citations
+🔍 **RAG System**: Retrieval-Augmented Generation for document-based financial Q&A with source citations
 💡 **Smart Profile Management**: Dynamic profile collection with flexible requirements and completion tracking
 📚 **Source Attribution**: Expandable source citations with direct links for market data
 🗄️ **Dual Storage Modes**: LocalStorage for development, Supabase-ready for production
@@ -368,23 +369,152 @@ The system includes comprehensive financial documents covering:
 - **Advanced Search**: Implement semantic similarity search with embeddings
 - **Document Management**: Add, edit, and organize document collections
 
+📈 **Stock Market Advisor (Polygon MCP Integration)**
+
+## Overview
+
+The Stock Market Advisor is a dedicated AI agent that provides real-time stock market analysis using Polygon.io's official MCP (Model Context Protocol) server. This integration gives the AI autonomous access to comprehensive financial market data for intelligent stock analysis and trading recommendations.
+
+## Key Features
+
+- **Real-time Stock Prices**: Current market data with live quotes and volume
+- **Technical Analysis**: OHLC charts, moving averages, support/resistance levels
+- **Company Fundamentals**: Revenue, earnings, P/E ratios, financial statements
+- **Market News**: Latest news articles and company-specific updates
+- **Historical Data**: Price history for trend analysis and backtesting
+- **Market Status**: Real-time market open/closed status and trading hours
+- **Multi-Asset Support**: Stocks, options, forex, and crypto (based on API tier)
+
+## Available Tools (Polygon.io MCP)
+
+The agent has autonomous access to these market data tools:
+
+| Tool | Description | Example Query |
+|------|-------------|---------------|
+| `get_aggs` | OHLC bars and aggregates | "Show AAPL's price chart this week" |
+| `get_snapshot_ticker` | Current market snapshot | "What's TSLA trading at?" |
+| `get_last_trade` | Most recent trade | "Last trade for NVDA" |
+| `get_previous_close` | Previous day close | "AAPL's close yesterday" |
+| `list_ticker_news` | Company news articles | "Latest Tesla news" |
+| `list_stock_financials` | Financial statements | "AAPL's revenue and EPS" |
+| `get_ticker_details` | Company information | "Tell me about Nvidia" |
+| `get_market_status` | Market hours | "Is the market open?" |
+
+## Architecture
+
+```
+User Query ("What's AAPL trading at?")
+    ↓
+Stock Advisor Frontend (/stock-advisor)
+    ↓
+API Route (/api/stock-advisor)
+    ↓
+Polygon MCP Client (STDIO Transport)
+    ↓
+Spawns Python MCP Server (uvx)
+    ↓
+Polygon.io REST API
+    ↓
+Real-time Market Data
+    ↓
+AI Agent Analyzes & Responds
+```
+
+## Setup
+
+### Prerequisites
+
+1. **Polygon.io API Key**: Sign up at [polygon.io](https://polygon.io/dashboard/signup)
+   - Free tier: 5 API calls/minute
+   - Paid plans: Unlimited calls with extended historical data
+
+2. **Python/uvx**: Install Astral uv for running the MCP server
+   ```bash
+   # macOS/Linux
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   
+   # Windows
+   powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+   ```
+
+### Configuration
+
+Add to `.env.local`:
+```bash
+POLYGON_API_KEY=your_polygon_api_key_here
+```
+
+### Install Dependencies
+
+```bash
+npm install
+# Installs @modelcontextprotocol/sdk and other required packages
+```
+
+## Usage Examples
+
+**Basic Queries:**
+- "What's Apple stock trading at?"
+- "Show me Tesla's price action today"
+- "Is the market open right now?"
+
+**Technical Analysis:**
+- "Analyze NVDA's recent trend"
+- "What's the support level for AMD?"
+- "Show me AAPL's 50-day moving average"
+
+**Fundamental Research:**
+- "What are Tesla's latest financials?"
+- "Tell me about Microsoft's revenue growth"
+- "What sector is Nvidia in?"
+
+**News & Sentiment:**
+- "Any news on Apple?"
+- "Why is Tesla stock moving today?"
+- "What are analysts saying about AMD?"
+
+## Access
+
+Navigate to: **http://localhost:3000/stock-advisor**
+
+## Documentation
+
+See [POLYGON_MCP_SETUP.md](./POLYGON_MCP_SETUP.md) for:
+- Detailed setup instructions
+- Troubleshooting guide
+- API key configuration
+- Performance optimization
+- Advanced features
+
+## Pricing
+
+**Polygon.io API Tiers:**
+- **Free**: 5 calls/min, limited historical data
+- **Starter ($29/mo)**: Unlimited calls, 1-year history
+- **Developer ($99/mo)**: Unlimited calls, 2-year history, more assets
+
+See: https://polygon.io/pricing
+
 🗺️ **Development Roadmap**
 
 ## Recently Completed ✅
 
+- **Stock Market Advisor with Polygon MCP** - Real-time market data integration with autonomous AI tools
 - **RAG System Implementation** - Document retrieval with source citations and streaming responses
 - **Profile Management System** - Dynamic collection with flexible requirements
 - **Market News Integration** - Real-time web search with source attribution
 - **LocalStorage Implementation** - Client-side profile persistence
 - **Debug Tools** - Comprehensive debugging utilities
 - **UI/UX Improvements** - Modern, responsive interface
+- **Quick Reply Buttons** - Interactive button-based responses for guided conversations
 
 ## Next Priority Items
 
+- **Custom Trading Tools** - Backtesting, portfolio analysis, risk assessment
 - **Real Vectorize.io Integration** - Replace mock RAG with actual vector database
 - **Supabase Integration** - Database storage for production
 - **Profile Analytics** - Advanced completion tracking and insights
-- **Enhanced Market Tools** - More sophisticated financial analysis
+- **Options & Crypto Analysis** - Extended market coverage beyond stocks
 - **User Authentication** - Secure user accounts and data protection
 
 ## Coming Soon
