@@ -1,4 +1,4 @@
-import { openai } from "@ai-sdk/openai"
+import { createOpenAI } from "@ai-sdk/openai"
 import { streamText } from "ai"
 import { SYSTEM_INSTRUCTIONS } from "@/components/agent/prompt"
 import { 
@@ -6,6 +6,11 @@ import {
   EMPTY_PROFILE
 } from "@/lib/profile-schema"
 import { extractProfileUpdates, applyProfileUpdates } from "@/lib/profile-extractor"
+
+// Initialize OpenAI with explicit API key for production environments
+const openai = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '',
+});
 
 export const maxDuration = 30
 

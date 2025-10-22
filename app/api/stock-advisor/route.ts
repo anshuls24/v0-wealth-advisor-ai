@@ -1,4 +1,4 @@
-import { openai } from "@ai-sdk/openai";
+import { createOpenAI } from "@ai-sdk/openai";
 import {
   streamText,
   convertToModelMessages,
@@ -8,6 +8,11 @@ import { NextRequest } from "next/server";
 import { STOCK_ADVISOR_SYSTEM_PROMPT } from "@/components/agent/stock-advisor-prompt";
 import { getPolygonMCPClient } from "@/lib/mcp";
 import { retrieveDocumentsTool } from "@/components/agent/tools/retrieve-documents";
+
+// Initialize OpenAI with explicit API key for production environments
+const openai = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '',
+});
 
 // Allow streaming responses up to 60 seconds for complex analysis
 export const maxDuration = 60;

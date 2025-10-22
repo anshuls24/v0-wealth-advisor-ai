@@ -1,11 +1,16 @@
 // RAG Chat API endpoint - following typescript-next-starter pattern
 // Uses tools for document retrieval with proper AI SDK streaming
 
-import { openai } from "@ai-sdk/openai"
+import { createOpenAI } from "@ai-sdk/openai"
 import { streamText, convertToModelMessages, stepCountIs } from "ai"
 import { RAG_SYSTEM_INSTRUCTIONS } from "@/components/agent/rag-prompt"
 import { retrieveDocumentsTool } from "@/components/agent/tools"
 import { NextRequest } from "next/server"
+
+// Initialize OpenAI with explicit API key for production environments
+const openai = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '',
+});
 
 export const maxDuration = 30
 
