@@ -5,21 +5,8 @@ services:
     region: oregon # Change to your preferred region (oregon, frankfurt, singapore, ohio)
     plan: starter # $7/month - or use 'free' for 750 hrs/month (note: free tier sleeps after 15 min inactivity)
     
-    # Build configuration
-    buildCommand: |
-      # Install Python and uv/uvx for Polygon MCP server
-      apt-get update && apt-get install -y python3 python3-pip curl
-      curl -LsSf https://astral.sh/uv/install.sh | sh
-      export PATH="/opt/render/.cargo/bin:$PATH"
-      # Install Node.js dependencies
-      npm install -g pnpm
-      pnpm install
-      pnpm build
-    
-    # Start command - ensure uvx is in PATH at runtime
-    startCommand: |
-      export PATH="/opt/render/.cargo/bin:$PATH"
-      pnpm start
+    # Note: Render Node environment doesn't support Python subprocesses needed for Polygon MCP
+    # For full MCP functionality, deploy to Railway instead: https://railway.app
     
     # Auto-deploy on push to main
     autoDeploy: true
@@ -36,4 +23,10 @@ services:
         sync: false # Set manually in dashboard for security
       - key: POLYGON_API_KEY
         sync: false # Set manually in dashboard for security
+      - key: VECTORIZE_PIPELINE_ACCESS_TOKEN
+        sync: false
+      - key: VECTORIZE_ORGANIZATION_ID
+        sync: false
+      - key: VECTORIZE_PIPELINE_ID
+        sync: false
 
