@@ -1,0 +1,13 @@
+{
+  "phases": {
+    "setup": {
+      "nixPkgs": ["python311", "uv"],
+      "nixOverlays": [],
+      "nixLibs": []
+    }
+  },
+  "start": {
+    "cmd": "pnpm start"
+  }
+}
+
