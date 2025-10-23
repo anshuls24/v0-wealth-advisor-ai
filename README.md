@@ -228,43 +228,33 @@ Market news and analysis endpoint with web search.
 
 🚢 **Deployment**
 
-## Render Deployment (Recommended - Best Value!) ⭐
+## Railway Deployment (Recommended) ⭐
 
-**Best for**: Full Stock MCP Server functionality with Polygon.io integration at the best price!
-
-See detailed guide: [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md)
-
-**Quick Start:**
-1. Push to GitHub: `git push origin main`
-2. Go to [render.com](https://render.com)
-3. Click "New +" → "Web Service"
-4. Select your repository
-5. Add environment variables:
-   - `OPENAI_API_KEY`: Your OpenAI API key
-   - `POLYGON_API_KEY`: Your Polygon.io API key
-6. Click "Create Web Service" - Render auto-deploys! 🚀
-
-**Why Render?**
-- ✅ Supports STDIO-based MCP servers (Polygon.io integration works!)
-- ✅ Python/uvx support built-in
-- ✅ **Free tier**: 750 hrs/month (great for testing!)
-- ✅ **Starter tier**: Only $7/month (always-on)
-- ✅ No serverless timeouts
-- ✅ Auto-deploy from GitHub
-
----
-
-## Railway Deployment (Alternative)
-
-**Best for**: Excellent developer experience
+**Best for**: Full Stock MCP Server functionality with Polygon.io integration!
 
 See detailed guide: [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)
 
+**Quick Start:**
+1. Push to GitHub: `git push origin main`
+2. Go to [railway.app](https://railway.app)
+3. Click "New Project" → "Deploy from GitHub repo"
+4. Select your repository
+5. Add environment variables:
+   - `NODE_ENV=production`
+   - `OPENAI_API_KEY`: Your OpenAI API key
+   - `POLYGON_API_KEY`: Your Polygon.io API key
+   - `VECTORIZE_PIPELINE_ACCESS_TOKEN`: mock-token (or your real token)
+   - `VECTORIZE_ORGANIZATION_ID`: mock-org (or your real org ID)
+   - `VECTORIZE_PIPELINE_ID`: mock-pipeline (or your real pipeline ID)
+6. Railway auto-deploys! 🚀
+
 **Why Railway?**
-- ✅ Supports STDIO-based MCP servers
-- ✅ Python/uvx support built-in
-- ✅ Great DX (developer experience)
-- ⚠️ ~$10-15/month (no free tier)
+- ✅ Supports STDIO-based MCP servers (Polygon.io integration works!)
+- ✅ Python/uvx support built-in via `railway.toml`
+- ✅ Excellent developer experience
+- ✅ No complex Docker configuration needed
+- ✅ Auto-deploy from GitHub
+- ✅ ~$10-15/month
 
 ---
 
