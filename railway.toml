@@ -2,10 +2,8 @@
 builder = "NIXPACKS"
 
 [build.nixpacksPlan.phases.setup]
-nixPkgs = ["python311", "python311Packages.pip"]
-
-[build.nixpacksPlan.phases.install]
-cmds = ["pip install uv"]
+# Install Python and uv directly from nixpkgs (no pip needed!)
+nixPkgs = ["python311", "uv"]
 
 [deploy]
 startCommand = "pnpm start"
