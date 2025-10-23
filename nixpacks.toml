@@ -1,6 +1,13 @@
 [phases.setup]
 nixPkgs = ["python311", "uv"]
 
+[phases.install]
+# Ensure pnpm is available in the build image before Nixpacks runs `pnpm install`
+cmds = [
+  "corepack enable",
+  "corepack prepare pnpm@8 --activate"
+]
+
 [start]
 cmd = "pnpm start"
 
