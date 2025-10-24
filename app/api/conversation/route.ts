@@ -212,13 +212,15 @@ Be friendly, professional, and encouraging. Then proceed to ask your first disco
     let tools: Record<string, any> = {
       retrieveKnowledgeBase: profileAwareRAGTool,
     };
+    
+    let mcpAvailable = false;
 
     // Try to add Polygon MCP tools if available (Railway only)
     // Add timeout to prevent hanging
     if (process.env.NODE_ENV === 'production') {
       console.log('🏭 Production mode detected - attempting to load Polygon MCP tools...');
       try {
-        // Add 10-second timeout for MCP connection
+        // Add 5-second timeout for MCP connection (reduced from 10s)
         const mcpPromise = (async () => {
           const polygonClient = getPolygonMCPClient();
           console.log('🔌 Connecting to Polygon MCP server...');
@@ -229,12 +231,13 @@ Be friendly, professional, and encouraging. Then proceed to ask your first disco
         })();
 
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('MCP connection timeout (10s)')), 10000)
+          setTimeout(() => reject(new Error('MCP connection timeout (5s)')), 5000)
         );
 
         const polygonTools = await Promise.race([mcpPromise, timeoutPromise]) as Record<string, any>;
         
         tools = { ...tools, ...polygonTools };
+        mcpAvailable = true;
         console.log(`✅ Conversation: Added ${Object.keys(polygonTools).length} Polygon MCP tools`);
         console.log(`📋 Available MCP tools:`, Object.keys(polygonTools).join(', '));
         console.log(`📋 Conversation: Total tools available: ${Object.keys(tools).length} (RAG + MCP)`);
@@ -247,6 +250,18 @@ Be friendly, professional, and encouraging. Then proceed to ask your first disco
       }
     } else {
       console.log(`💻 Development mode - using profile-aware RAG tool only (MCP requires Railway)`);
+    }
+    
+    // Add tool availability info to system prompt
+    if (!mcpAvailable) {
+      systemContent += `\n\n⚠️ IMPORTANT SYSTEM INFO: Real-time market data tools (Polygon MCP) are currently unavailable. You ONLY have access to the retrieveKnowledgeBase tool. When users ask about specific tickers or market analysis:
+1. DO NOT say "I'll gather market data" or "Please hold on for market data"
+2. IMMEDIATELY acknowledge that real-time data is unavailable
+3. IMMEDIATELY use retrieveKnowledgeBase to provide strategy education
+4. Focus on teaching strategies suitable for their profile and the ticker type they mentioned
+5. Provide value through education, not through pretending to fetch unavailable data
+
+Example response: "While I can't access real-time market data for QQQ right now, I can help you understand the best options strategies for tech-heavy ETFs like QQQ based on your profile. Let me retrieve some strategy information for you." Then IMMEDIATELY call retrieveKnowledgeBase.`;
     }
 
     const result = streamText({
