@@ -15,30 +15,44 @@ It’s built for modern deployment (Railway), streams responses, logs every tool
 - **Resilient Orchestration**: If MCP is down, the agent immediately pivots to RAG‑only education without stalling.
 - **First‑class Observability**: Detailed step logs of tool calls, args, results, and the active profile context.
 
-## 🧠 Orchestration (RAG‑First) — Diagram
+## 🧠 Orchestration (RAG‑First) — Flowchart
 
 ```mermaid
 flowchart TD
-  A[User Message] --> B{Profile Store}
-  B -->|merge| C[Merged Profile]
-  C --> D[Build RAG Query
-  (risk, experience, bias, horizon)]
-  D --> E[Vectorize Retrieval]
-  E --> F[Document Context
-  + Profile Context]
-  F --> G{MCP Available?}
-  G -- No --> H[RAG‑only Synthesis]
-  G -- Yes --> I[Polygon MCP Tools
-  (snapshot/news/aggs)]
-  I --> J[Refine Parameters
-  (expiry, strikes, filters)]
-  J --> K[Final Strategy Synthesis]
-  H --> K
-  K --> L[Streamed Answer
-  + Sources + Profile fit]
-```
+  %% Intake & Profile
+  A[User Message] --> B{Has userId?}
+  B -- Yes --> C[Load Stored Profile]
+  B -- No  --> D[Create userId]
+  D --> C
+  C --> E[Merge Incoming Profile + Stored Profile]
 
-The agent always calls RAG first to anchor on canonical strategy guidance, then (optionally) validates/refines with MCP market context.
+  %% RAG First
+  E --> F[Construct RAG Query\n(risk, experience, bias, horizon, ticker hint)]
+  F --> G[Vectorize Retrieval]
+  G --> H{Docs Found?}
+  H -- No --> H1[Return Educational Fallback\n(no docs)] --> Z
+  H -- Yes --> I[Compose Context\n(Documents + Profile)]
+
+  %% MCP Optional
+  I --> J{MCP Available?}
+  J -- No --> K[RAG‑Only Synthesis]
+  J -- Yes --> L[Infer Ticker (if missing)]
+  L --> M[Call MCP Tools\n(snapshot, news, aggs)]
+  M --> N{Success?}
+  N -- No --> K
+  N -- Yes --> O[Refine Strategy Params\n(expiry, strikes, filters)]
+  O --> P[Synthesize Final Answer]
+
+  %% Streaming & Persist
+  K --> P
+  P --> Q[Stream Tokens to UI]
+  Q --> R[Persist Merged Profile]
+  R --> Z[End]
+
+  %% Timeouts & Guards
+  J -. MCP 5s Timeout .-> K
+  M -. Missing Args Guard .-> L
+```
 
 ## 🏗️ Architecture
 
