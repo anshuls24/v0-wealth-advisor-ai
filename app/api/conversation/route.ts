@@ -9,6 +9,7 @@ import {
   getProfileCompletionPercentage
 } from "@/lib/profile-schema"
 import { extractProfileUpdates, applyProfileUpdates } from "@/lib/profile-extractor"
+import { ProfileStore } from "@/lib/profile-store"
 import { createRetrieveDocumentsTool } from "@/components/agent/tools/retrieve-documents"
 import { getPolygonMCPClient } from "@/lib/mcp"
 
@@ -41,8 +42,8 @@ export async function POST(req: Request) {
     const userMessages = messages.filter((msg: any) => msg.role === 'user')
     const isFirstUserMessage = userMessages.length === 1
 
-    // Use client-provided profile or empty profile
-    let currentProfile: ClientProfile = clientProfile || EMPTY_PROFILE;
+    // Merge client-provided profile with any server-stored profile for this user
+    let currentProfile: ClientProfile = ProfileStore.merge(userId, clientProfile || undefined);
 
     // Extract profile updates from the latest user message (like booking-agent-ts)
     const latestMessage = messages[messages.length - 1];
@@ -206,7 +207,16 @@ Be friendly, professional, and encouraging. Then proceed to ask your first disco
       completion: profilePercentage + '%',
     });
     
-    // Create profile-aware RAG tool
+    // Persist updated profile for this userId
+    try {
+      if (userId) {
+        ProfileStore.set(userId, updatedProfile);
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to persist profile in ProfileStore:', e instanceof Error ? e.message : e);
+    }
+
+    // Create profile-aware RAG tool with merged profile
     const profileAwareRAGTool = createRetrieveDocumentsTool(updatedProfile);
     
     let tools: Record<string, any> = {
