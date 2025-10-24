@@ -21,6 +21,16 @@ export const maxDuration = 60
 
 export async function POST(req: Request) {
   try {
+    console.log('🚀 ========== CONVERSATION API START ==========');
+    console.log('🌍 Environment:', process.env.NODE_ENV);
+    console.log('🔑 API Keys Status:', {
+      openai: process.env.OPENAI_API_KEY ? '✅ Set' : '❌ Missing',
+      polygon: process.env.POLYGON_API_KEY ? '✅ Set' : '❌ Missing',
+      vectorize_token: process.env.VECTORIZE_PIPELINE_ACCESS_TOKEN ? '✅ Set' : '❌ Missing',
+      vectorize_org: process.env.VECTORIZE_ORGANIZATION_ID ? '✅ Set' : '❌ Missing',
+      vectorize_pipeline: process.env.VECTORIZE_PIPELINE_ID ? '✅ Set' : '❌ Missing',
+    });
+    
     const { messages, userId, profile: clientProfile } = await req.json()
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -205,18 +215,25 @@ Be friendly, professional, and encouraging. Then proceed to ask your first disco
 
     // Try to add Polygon MCP tools if available (Railway only)
     if (process.env.NODE_ENV === 'production') {
+      console.log('🏭 Production mode detected - attempting to load Polygon MCP tools...');
       try {
         const polygonClient = getPolygonMCPClient();
+        console.log('🔌 Connecting to Polygon MCP server...');
         await polygonClient.connect();
+        console.log('✅ Polygon MCP connected, fetching tools...');
         const polygonTools = await polygonClient.getTools();
         tools = { ...tools, ...polygonTools };
         console.log(`✅ Conversation: Added ${Object.keys(polygonTools).length} Polygon MCP tools`);
+        console.log(`📋 Available MCP tools:`, Object.keys(polygonTools).join(', '));
         console.log(`📋 Conversation: Total tools available: ${Object.keys(tools).length} (RAG + MCP)`);
+        console.log(`📋 All tools:`, Object.keys(tools).join(', '));
       } catch (err) {
-        console.warn('⚠️ Conversation: Polygon MCP unavailable, using profile-aware RAG only:', err);
+        console.error('❌ Conversation: Polygon MCP connection failed:', err);
+        console.error('❌ Error details:', err instanceof Error ? err.message : String(err));
+        console.warn('⚠️ Conversation: Falling back to profile-aware RAG only');
       }
     } else {
-      console.log(`📋 Conversation: Development mode - using profile-aware RAG tool only`);
+      console.log(`💻 Development mode - using profile-aware RAG tool only (MCP requires Railway)`);
     }
 
     const result = streamText({
@@ -225,18 +242,39 @@ Be friendly, professional, and encouraging. Then proceed to ask your first disco
       temperature: 0.7,
       tools,
       onStepFinish: (step) => {
+        console.log('📊 ========== STEP FINISHED ==========');
+        
         // Log tool usage with profile context
         if (step.toolCalls && step.toolCalls.length > 0) {
-          console.log('🔧 Conversation: Tools called in this step:', step.toolCalls.map(tc => tc.toolName));
-          console.log('👤 Conversation: Profile context for these tools:', {
+          console.log('🔧 Tools called in this step:', step.toolCalls.length);
+          step.toolCalls.forEach((tc, idx) => {
+            console.log(`  [${idx + 1}] Tool: ${tc.toolName}`);
+            console.log(`      Args:`, JSON.stringify(tc.args).substring(0, 200));
+          });
+          console.log('👤 Profile context for these tools:', {
             riskTolerance: updatedProfile?.risk?.tolerance || 'unknown',
             experience: updatedProfile?.options?.experience_level || 'unknown',
             strategyPref: updatedProfile?.options?.strategy_preference || 'unknown',
           });
         }
+        
         if (step.toolResults && step.toolResults.length > 0) {
-          console.log('✅ Conversation: Tool results received:', step.toolResults.length);
+          console.log('✅ Tool results received:', step.toolResults.length);
+          step.toolResults.forEach((tr, idx) => {
+            console.log(`  [${idx + 1}] Tool: ${tr.toolName}`);
+            const resultStr = JSON.stringify(tr.result).substring(0, 300);
+            console.log(`      Result preview:`, resultStr);
+            if ('error' in tr.result) {
+              console.error(`      ❌ Tool error:`, tr.result.error);
+            }
+          });
         }
+        
+        if (!step.toolCalls || step.toolCalls.length === 0) {
+          console.log('💬 No tools called in this step (AI generated text only)');
+        }
+        
+        console.log('📊 ======================================');
       },
     })
 
@@ -247,6 +285,7 @@ Be friendly, professional, and encouraging. Then proceed to ask your first disco
       // In a real app, you might store this in Redis or a database with the userId
     }
 
+    console.log('✅ ========== CONVERSATION API COMPLETE ==========');
     return result.toUIMessageStreamResponse()
   } catch (error) {
     console.error("Conversation API error:", error)
