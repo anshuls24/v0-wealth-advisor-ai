@@ -214,14 +214,26 @@ Be friendly, professional, and encouraging. Then proceed to ask your first disco
     };
 
     // Try to add Polygon MCP tools if available (Railway only)
+    // Add timeout to prevent hanging
     if (process.env.NODE_ENV === 'production') {
       console.log('🏭 Production mode detected - attempting to load Polygon MCP tools...');
       try {
-        const polygonClient = getPolygonMCPClient();
-        console.log('🔌 Connecting to Polygon MCP server...');
-        await polygonClient.connect();
-        console.log('✅ Polygon MCP connected, fetching tools...');
-        const polygonTools = await polygonClient.getTools();
+        // Add 10-second timeout for MCP connection
+        const mcpPromise = (async () => {
+          const polygonClient = getPolygonMCPClient();
+          console.log('🔌 Connecting to Polygon MCP server...');
+          await polygonClient.connect();
+          console.log('✅ Polygon MCP connected, fetching tools...');
+          const polygonTools = await polygonClient.getTools();
+          return polygonTools;
+        })();
+
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('MCP connection timeout (10s)')), 10000)
+        );
+
+        const polygonTools = await Promise.race([mcpPromise, timeoutPromise]) as Record<string, any>;
+        
         tools = { ...tools, ...polygonTools };
         console.log(`✅ Conversation: Added ${Object.keys(polygonTools).length} Polygon MCP tools`);
         console.log(`📋 Available MCP tools:`, Object.keys(polygonTools).join(', '));
@@ -231,6 +243,7 @@ Be friendly, professional, and encouraging. Then proceed to ask your first disco
         console.error('❌ Conversation: Polygon MCP connection failed:', err);
         console.error('❌ Error details:', err instanceof Error ? err.message : String(err));
         console.warn('⚠️ Conversation: Falling back to profile-aware RAG only');
+        console.warn('⚠️ This is OK - RAG will still work for strategy recommendations');
       }
     } else {
       console.log(`💻 Development mode - using profile-aware RAG tool only (MCP requires Railway)`);
