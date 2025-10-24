@@ -1,73 +1,147 @@
-# STOCK-AI Advisor
+# optionAI — Options Strategy Orchestrator
 
-A sophisticated, production-ready AI-powered stock trading advisor that demonstrates advanced capabilities including intelligent strategy development, trader profile management, market analysis, and personalized trading recommendations. Built with modern web technologies and deployed to production.
+optionAI is a production-grade, profile‑aware Options Strategy Orchestrator. It fuses a RAG knowledge engine with Polygon.io MCP market tools and a smart profile system to deliver grounded, personalized options strategy guidance — fast.
 
-🎯 **Agent Capabilities Summary**
+It’s built for modern deployment (Railway), streams responses, logs every tool call, and gracefully falls back when real‑time market data is unavailable.
 
-The STOCK-AI Advisor is a fully autonomous intelligent stock trading system that:
+— “Options Guru” meets “your Options best friend.”
 
-- **Understands Trading Context** - Analyzes trader profiles and determines optimal trading strategies
-- **Manages Trader Profiles** - Collects and maintains comprehensive trading profiles with flexible requirements
-- **Provides Market Intelligence** - Real-time market updates and news analysis with web search capabilities
-- **Generates Personalized Recommendations** - Tailored trading advice based on individual risk tolerance and goals
-- **Tracks Progress** - Continuous profile completion monitoring and summary generation
-- **Self-Optimizes** - Adapts questioning strategy based on user responses and profile completeness
+## ✨ Core Capabilities
 
-📊 **Project Metrics**
+- **Profile‑Aware Brain**: Builds and persists a rich client profile (risk tolerance, experience, strategy bias, underlyings, IV comfort, horizon).
+- **RAG‑First Recommendations**: Always grounds strategy guidance in retrieved docs (Vectorize). MCP is used to validate/refine.
+- **Polygon MCP Integration**: On Railway, optionAI gains 50+ Polygon tools (snapshots, news, aggs) via MCP with timeouts and logging.
+- **News → Strategy Flow**: Pull news, contextualize with profile, query RAG, synthesize — all in one streamed reply.
+- **Resilient Orchestration**: If MCP is down, the agent immediately pivots to RAG‑only education without stalling.
+- **First‑class Observability**: Detailed step logs of tool calls, args, results, and the active profile context.
 
-- **4 Core Modules** - Chat Advisor, AI-RAG System, Market News, Financial Tools
-- **RAG Implementation** - Document retrieval with source citations and streaming responses
-- **Real-time Profile Management** - Dynamic user profile collection and storage
-- **Web Search Integration** - Live market data and news analysis
-- **Flexible Profile Requirements** - Adaptive questioning based on user responses
-- **Production Deployed** - Live and accessible on Vercel
-- **LocalStorage + Database Ready** - Prepared for seamless migration to Supabase
+## 🧠 Orchestration (RAG‑First) — Diagram
 
-🚀 **Features**
+```mermaid
+flowchart TD
+  A[User Message] --> B{Profile Store}
+  B -->|merge| C[Merged Profile]
+  C --> D[Build RAG Query
+  (risk, experience, bias, horizon)]
+  D --> E[Vectorize Retrieval]
+  E --> F[Document Context
+  + Profile Context]
+  F --> G{MCP Available?}
+  G -- No --> H[RAG‑only Synthesis]
+  G -- Yes --> I[Polygon MCP Tools
+  (snapshot/news/aggs)]
+  I --> J[Refine Parameters
+  (expiry, strikes, filters)]
+  J --> K[Final Strategy Synthesis]
+  H --> K
+  K --> L[Streamed Answer
+  + Sources + Profile fit]
+```
 
-## Core Capabilities
+The agent always calls RAG first to anchor on canonical strategy guidance, then (optionally) validates/refines with MCP market context.
 
-🤖 **Intelligent Chat Advisor**: Sophisticated AI agent that collects user profiles and provides personalized financial advice
-📈 **Stock Market Advisor (NEW)**: Real-time stock analysis with Polygon.io MCP integration for live market data
-🌐 **Market News & Analysis**: Real-time market updates with web search integration and source citations
-📊 **Financial Tools**: Comprehensive suite of financial calculators and chart generators
-🔍 **RAG System**: Retrieval-Augmented Generation for document-based financial Q&A with source citations
-💡 **Smart Profile Management**: Dynamic profile collection with flexible requirements and completion tracking
-📚 **Source Attribution**: Expandable source citations with direct links for market data
-🗄️ **Dual Storage Modes**: LocalStorage for development, Supabase-ready for production
-⚡ **Real-time Updates**: Live profile completion tracking and summary generation
-🎛️ **Interactive UI**: Modern, responsive interface with tabbed navigation
-📊 **Profile Completion Analytics**: Comprehensive tracking of user data collection progress
+## 🏗️ Architecture
 
-## Technical Highlights
+- **Chat Advisor**: Conversational layer that collects profile signals and orchestrates tools.
+- **Options Guru (RAG)**: Vectorize retrieval fed with a profile‑enhanced query; returns concise, sourceable guidance.
+- **“Your Options Best Friend” (MCP)**: Polygon MCP tools exposed to the AI as native tools (news, snapshots, aggs, etc.).
+- **Profile Store**: In‑memory merge/persist per `userId` (ready to swap for Redis/Postgres).
+- **Observability**: `onStepFinish` logs tool calls, args, results, and active profile facets.
 
-- **AI SDK Integration** - Vercel AI SDK with OpenAI GPT-4o for intelligent conversations
-- **RAG Implementation** - Document retrieval with semantic search and source citations
-- **Web Search Tools** - Real-time market data fetching with source attribution
-- **Profile Schema Management** - Flexible JSON schema with completion percentage tracking
-- **State Management** - Robust React state management with in-memory persistence
-- **Streaming Responses** - Real-time AI responses with manual streaming parser
-- **Responsive Design** - Modern UI with Tailwind CSS and shadcn/ui components
-- **Error Handling** - Comprehensive error management and user feedback
-- **Debug Tools** - Built-in debugging utilities for profile state inspection
+## 🔧 Features (High‑Signal)
 
-🔒 **Security Features**
+- RAG‑first enforcement (prompt + tool order)
+- Dynamic profile merging/persistence across requests
+- MCP connection timeout + graceful fallback
+- Tool wrappers to repair missing args (e.g., infer ticker) and safe defaults
+- Robust logging guards (no more substring on undefined)
+- UI tuned for options: “Options Guru”, “Options best friend”, hidden generic tools tab
 
-- **Input Validation** - Comprehensive validation of user inputs and profile data
-- **Error Boundaries** - Graceful error handling with user-friendly messages
-- **Type Safety** - Full TypeScript implementation with strict type checking
-- **Data Sanitization** - Safe handling of user profile data and financial information
+## 🚀 Quick Start
 
-🏗️ **Architecture Overview**
+Prereqs:
+- Node 18+
+- pnpm 8+
+- OPENAI_API_KEY
+- (Railway prod) POLYGON_API_KEY, VECTORIZE credentials
 
-## Component Overview
+Install & run:
+```bash
+pnpm install
+pnpm dev
+```
 
-- **Chat Advisor**: Main conversational interface with profile collection and financial advice
-- **AI-RAG System**: Document retrieval and Q&A with source citations and semantic search
-- **Market News**: Real-time market analysis with web search capabilities
-- **Financial Tools**: Calculator and chart generation utilities
-- **Profile Management**: Dynamic user profile collection and storage system
-- **Storage Layer**: In-memory state management with future database integration support
+Environment (example):
+```bash
+OPENAI_API_KEY=sk-...
+# Railway / production
+POLYGON_API_KEY=...
+VECTORIZE_PIPELINE_ACCESS_TOKEN=...
+VECTORIZE_ORGANIZATION_ID=...
+VECTORIZE_PIPELINE_ID=...
+NODE_ENV=production
+```
+
+## 🖥️ Tabs & UX
+
+- **Chat Advisor** — profile builder + recommendations
+- **Market News** — curated news and context
+- **Options Guru** — direct RAG search with strict doc‑only rules
+- Header button: **Options best friend** — MCP landing (Railway recommended)
+
+## 🗂️ Endpoints (Highlights)
+
+- `POST /api/conversation` — main orchestrator; merges profile, RAG‑first, MCP optional.
+- `POST /api/rag-chat` — strict document‑only Q&A for strategy education.
+- `POST /api/market-news` — market news assistant.
+- `GET  /api/diagnostic` — checks keys + MCP connectivity (prod only).
+
+## 🧩 Profile System
+
+- Schema extends options‑specific fields: experience level, strategy preference, underlyings, IV comfort, horizon, risk structure, learning style.
+- Server merges incoming profile with stored profile per `userId` and persists updates during each turn.
+- Automatic completion milestones (75% / 100%) trigger summary + recommendation modes.
+
+## 🛡️ Reliability & Guardrails
+
+- 5s MCP connect timeout with log‑first fallback to RAG.
+- Tool wrappers infer ticker / add defaults to prevent undefined args.
+- Defensive logging (no crashes on undefined substring/stringify).
+- Clear “MCP unavailable” system mode with RAG‑only behavior.
+
+## 📦 Deploy
+
+### Railway (Recommended)
+Best experience for MCP (Python/uvx) + Node. Auto‑detects `railway.toml`; no Docker required.
+
+Steps:
+1) Push to GitHub → create Railway project from repo
+2) Set env vars (OPENAI, POLYGON, VECTORIZE*)
+3) Ensure Nixpacks builder is selected; deploy
+
+### Vercel
+Great for the UI and RAG; MCP subprocess is not supported. Use Railway for full MCP.
+
+## 🧭 Verifying Orchestration
+
+- Ask: “I’m moderate risk; I prefer credit spreads.”
+- Then: “news on NVDA”
+- Logs should show: profile merged → RAG query with profile facets → optional MCP list_ticker_news with non‑undefined args → streamed synthesis.
+
+## 🗺️ Roadmap
+
+- Redis/Postgres profile store
+- Vectorize: hybrid + rerank, per‑user corpora
+- Options screeners and backtesting helpers
+- Auth + multi‑tenant orgs
+
+## 🧰 Tech Stack
+
+Next.js 15 • TypeScript • Vercel AI SDK • OpenAI • Polygon MCP • Vectorize • Tailwind • shadcn/ui
+
+---
+
+Built with care and an unreasonable amount of instrumentation. This repo demonstrates a pragmatic, production‑minded approach to AI tool orchestration for options trading.
 
 🚀 **Getting Started**
 
