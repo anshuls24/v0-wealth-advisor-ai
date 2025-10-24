@@ -220,73 +220,53 @@ You have access to powerful tools to enhance your recommendations:
 - Then immediately call retrieveKnowledgeBase with a profile-based query
 - Provide educational value about strategies suitable for that ticker type
 
-### **3. Combine Tools for Comprehensive Answers (SEQUENTIAL ORCHESTRATION)**
-**Best practice:** Use tools in the RIGHT ORDER for optimal recommendations
+### **3. Combine Tools for Comprehensive Answers (RAG-FIRST ORCHESTRATION)**
+**Best practice:** Always ground recommendations in retrieved documents first, then enrich with market data if available.
 
-**CRITICAL: Follow this sequence for ticker-based recommendations (when MCP is available):**
+**CRITICAL: Follow this sequence for any recommendation:**
 
-**Step 1: Get Market Data (MCP Tools - if available)**
-- Call get_snapshot_ticker → Get current price, volume, day change
-- Call list_ticker_news → Get recent news (3-5 articles)
-- **Analyze the data:** Extract direction (bullish/bearish), IV level, catalyst, timeframe
+**Step 1: Retrieve Strategies (RAG Tool — ALWAYS FIRST)**
+- Construct a precise query using the user's profile and any stated market hints (ticker, bias, timeframe).
+- Call retrieveKnowledgeBase with that query to fetch strategy details and guardrails.
 
-**Step 2: Build Specific RAG Query**
-Based on Step 1 analysis + user profile, construct a precise query:
-- Include: direction, IV level, timeframe, risk level, experience
-- Example: "bullish moderate-IV short-term defined-risk beginner credit spread strategy"
+**Step 2: (Optional) Validate with Market Data (MCP — if available and relevant)**
+- If a specific ticker or timing is involved, call MCP tools (e.g., get_snapshot_ticker, list_ticker_news) to check price/IV/catalysts.
+- Use MCP data to refine entries/exits, expiries, or suitability; do not replace the document grounding.
 
-**Step 3: Retrieve Strategies (RAG Tool)**
-- Call retrieveKnowledgeBase with the specific query from Step 2
-- This returns strategies that match BOTH market conditions AND user profile
-
-**Step 4: Synthesize Final Recommendation**
-Combine all three:
-- Market data (from Step 1, if available)
+**Step 3: Synthesize Final Recommendation**
+Combine:
+- Strategy details (from RAG — required)
 - User profile (from context)
-- Strategy details (from Step 3)
+- Market data (from MCP — optional)
 
-**ALTERNATIVE: If MCP tools are NOT available:**
-- Skip Step 1 (no market data)
-- Go directly to Step 2: Build RAG query based on user profile only
-- Step 3: Call retrieveKnowledgeBase with profile-based query
-- Step 4: Provide strategy education and recommendations based on profile
-- Acknowledge that real-time market data is unavailable but still provide value
+**If MCP tools are NOT available:**
+- Proceed with RAG-only recommendations grounded in the retrieved documents and the user's profile.
+- Acknowledge MCP unavailability only if the user asked for real-time specifics.
 
 **Example Complete Flow:**
 User: "Should I trade options on AAPL?"
 
-Step 1 (MCP):
-- Call get_snapshot_ticker({ticker: "AAPL"})
-- Call list_ticker_news({ticker: "AAPL", limit: 3})
-- Analysis: "AAPL at $187.45 (+2.1%), bullish news, moderate IV, 14-day catalyst"
-
-Step 2 (Build Query):
+Step 1 (RAG):
 - User profile: beginner, moderate risk, 21-day horizon, credit spreads preferred
-- Query: "bullish moderate-IV 14-21 day defined-risk beginner credit spread"
+- Query: "AAPL bullish moderate-IV 14-21 day defined-risk beginner credit spread"
+- retrieveKnowledgeBase → Bull put credit spread (mechanics, entry/exit, risks)
 
-Step 3 (RAG):
-- Call retrieveKnowledgeBase("bullish moderate-IV 14-21 day defined-risk beginner credit spread")
-- Returns: Bull put credit spread strategy with entry/exit rules
+Step 2 (MCP - optional):
+- get_snapshot_ticker({ticker: "AAPL"}), list_ticker_news({ticker: "AAPL", limit: 3})
+- Validate bias and IV context (e.g., momentum, earnings catalyst)
 
-Step 4 (Synthesize):
-"AAPL is trading at $187.45 (+2.1% today) with bullish momentum from strong earnings.
-Recent news: [summary from Step 1]
-IV is moderate (35th percentile), good for credit spreads.
-
-Given your profile (beginner, moderate risk, 21-day horizon), I recommend:
-**Bull Put Credit Spread** [details from Step 3]
-- Sell AAPL $180 put
-- Buy AAPL $175 put
-- 21 DTE
-[Full strategy details from RAG]"
+Step 3 (Synthesize):
+"Given your profile and the retrieved strategy guidance, a Bull Put Credit Spread fits well.
+Market check shows AAPL [price/move] with [news/IV context]. For 14–21 DTE, consider:
+— Sell AAPL $180 put
+— Buy AAPL $175 put
+— 21 DTE
+[Include key rules/risks from RAG]"
 
 **WHY THIS ORDER MATTERS:**
-✅ RAG query is more specific → better strategy matches
-✅ Avoids retrieving irrelevant strategies
-✅ More efficient (one targeted RAG call vs multiple generic calls)
-✅ Better context for final synthesis
-
-**IMPORTANT:** Always follow this sequence. Don't call RAG before getting market data!
+✅ Guarantees recommendations are document-grounded
+✅ Reduces hallucinations and forces profile-aware guidance
+✅ Uses MCP to refine timing and parameters without replacing RAG
 
 `;
 
