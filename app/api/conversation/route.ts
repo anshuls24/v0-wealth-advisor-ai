@@ -277,7 +277,21 @@ Example response: "While I can't access real-time market data for QQQ right now,
           console.log('🔧 Tools called in this step:', step.toolCalls.length);
           step.toolCalls.forEach((tc, idx) => {
             console.log(`  [${idx + 1}] Tool: ${tc.toolName}`);
-            console.log(`      Args:`, JSON.stringify(tc.args).substring(0, 200));
+            try {
+              if (tc.args === undefined || tc.args === null) {
+                console.log(`      Args: [${tc.args === undefined ? 'undefined' : 'null'}]`);
+              } else {
+                const argsStr = JSON.stringify(tc.args);
+                if (typeof argsStr === 'string') {
+                  const preview = argsStr.length > 200 ? argsStr.substring(0, 200) + '...' : argsStr;
+                  console.log(`      Args:`, preview);
+                } else {
+                  console.log(`      Args: [unserializable]`);
+                }
+              }
+            } catch (e) {
+              console.log(`      Args: [Could not stringify - ${e instanceof Error ? e.message : 'unknown error'}]`);
+            }
           });
           console.log('👤 Profile context for these tools:', {
             riskTolerance: updatedProfile?.risk?.tolerance || 'unknown',
