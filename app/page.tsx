@@ -331,7 +331,7 @@ export default function Home() {
                 </TabsTrigger>
                 <TabsTrigger value="market" className="flex items-center gap-2">
                   <TrendingUp className="h-4 w-4" />
-                  ur Options best friend
+                  Market News
                 </TabsTrigger>
                 <TabsTrigger value="ai-rag" className="flex items-center gap-2">
                   <Bot className="h-4 w-4" />
@@ -346,7 +346,7 @@ export default function Home() {
               <Link href="/stock-advisor" target="_blank">
                 <Button variant="default" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 whitespace-nowrap">
                   <Database className="h-4 w-4" />
-                  Stock MCP Server
+                  Options best friend
                 </Button>
               </Link>
             </div>
@@ -628,7 +628,7 @@ export default function Home() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5" />
-                    ur Options best friend
+                    Market Updates & News
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
