@@ -268,7 +268,7 @@ export default function Home() {
         {/* Header - Always visible */}
         <div className="text-center mb-4 flex-shrink-0">
           <h1 className="text-2xl font-bold text-slate-800 mb-1">
-            STOCK-AI Advisor
+            optionAI
           </h1>
           <p className="text-slate-600 text-sm">
             Your personal AI-powered stock trading assistant
@@ -324,23 +324,23 @@ export default function Home() {
         <div className="flex-1 flex flex-col min-h-0">
           <Tabs defaultValue="chat" className="w-full flex-1 flex flex-col">
             <div className="flex items-center gap-2 mb-3 flex-shrink-0">
-              <TabsList className="grid flex-1 grid-cols-4">
+              <TabsList className="grid flex-1 grid-cols-3">
                 <TabsTrigger value="chat" className="flex items-center gap-2">
                   <Bot className="h-4 w-4" />
                   Chat Advisor
                 </TabsTrigger>
                 <TabsTrigger value="market" className="flex items-center gap-2">
                   <TrendingUp className="h-4 w-4" />
-                  Market News
+                  ur Options best friend
                 </TabsTrigger>
                 <TabsTrigger value="ai-rag" className="flex items-center gap-2">
                   <Bot className="h-4 w-4" />
-                  AI-RAG
+                  Options Guru
                 </TabsTrigger>
-                <TabsTrigger value="tools" className="flex items-center gap-2">
+                {/* <TabsTrigger value="tools" className="flex items-center gap-2">
                   <BarChart3 className="h-4 w-4" />
                   Financial Tools
-                </TabsTrigger>
+                </TabsTrigger> */}
               </TabsList>
               {/* Stock MCP Server - Note: Full functionality requires local development (STDIO/uvx) */}
               <Link href="/stock-advisor" target="_blank">
@@ -414,7 +414,7 @@ export default function Home() {
                 <CardHeader className="pb-4 flex-shrink-0 border-b bg-white">
                         <CardTitle className="flex items-center gap-2">
                           <Bot className="h-5 w-5" />
-                          Chat with STOCK-AI
+                          Chat with optionAI
                         </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col p-0 min-h-0">
@@ -628,7 +628,7 @@ export default function Home() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5" />
-                    Market Updates & News
+                    ur Options best friend
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -667,7 +667,7 @@ export default function Home() {
               <RAGChat className="flex-1 min-h-0" />
             </TabsContent>
 
-            <TabsContent value="tools" className="space-y-6">
+            {/* <TabsContent value="tools" className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -705,7 +705,7 @@ export default function Home() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </TabsContent> */}
           </Tabs>
         </div>
       </div>
