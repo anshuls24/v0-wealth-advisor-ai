@@ -274,50 +274,52 @@ export default function Home() {
             Your personal AI-powered stock trading assistant
           </p>
             
-            {/* Debug Section */}
-          <div className="mt-2 flex justify-center gap-2 flex-wrap">
-              <Button 
-                onClick={handleCheckProfile}
-                variant="outline"
-                size="sm"
-                className="text-xs"
-              >
-                🔍 Check Profile
-              </Button>
-              <Button 
-                onClick={handleRefreshProfile}
-                variant="outline"
-                size="sm"
-                className="text-xs text-blue-600"
-              >
-                🔄 Refresh Profile
-              </Button>
-              <Button 
-                onClick={handleTestProfileUpdate}
-                variant="outline"
-                size="sm"
-                className="text-xs text-green-600"
-              >
-                🧪 Test Profile
-              </Button>
-              
-              <Button 
-                onClick={handleTestParseProfile}
-                variant="outline"
-                size="sm"
-                className="text-xs text-purple-600"
-              >
-                🔍 Test Parse
-              </Button>
-              <Button 
-                onClick={handleClearProfile}
-                variant="outline"
-                size="sm"
-                className="text-xs text-red-600"
-              >
-                🗑️ Clear Profile
-              </Button>
-            </div>
+            {/* Debug Section - Hidden */}
+            {false && (
+              <div className="mt-2 flex justify-center gap-2 flex-wrap">
+                <Button 
+                  onClick={handleCheckProfile}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                >
+                  🔍 Check Profile
+                </Button>
+                <Button 
+                  onClick={handleRefreshProfile}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs text-blue-600"
+                >
+                  🔄 Refresh Profile
+                </Button>
+                <Button 
+                  onClick={handleTestProfileUpdate}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs text-green-600"
+                >
+                  🧪 Test Profile
+                </Button>
+                
+                <Button 
+                  onClick={handleTestParseProfile}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs text-purple-600"
+                >
+                  🔍 Test Parse
+                </Button>
+                <Button 
+                  onClick={handleClearProfile}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs text-red-600"
+                >
+                  🗑️ Clear Profile
+                </Button>
+              </div>
+            )}
           </div>
 
         {/* Main Content - Fixed height container */}
