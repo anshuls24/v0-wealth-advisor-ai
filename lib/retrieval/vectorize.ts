@@ -50,49 +50,73 @@ export class VectorizeService {
     numResults: number = 5
   ): Promise<VectorizeDocument[]> {
     console.log(`🔍 Vectorize: Retrieving documents for: "${question}" (numResults: ${numResults})`);
+    console.log(`🔍 Vectorize Config:`, {
+      orgId: this.organizationId,
+      pipelineId: this.pipelineId,
+      hasToken: !!this.accessToken,
+      tokenPrefix: this.accessToken.substring(0, 30) + '...',
+    });
     
-    // Mock implementation that returns financial documents
-    // In production, this would use the official Vectorize client:
-    // const config = new Configuration({
-    //   accessToken: this.accessToken,
-    //   basePath: "https://api.vectorize.io/v1",
-    // });
-    // const pipelinesApi = new PipelinesApi(config);
-    // const response = await pipelinesApi.retrieveDocuments({
-    //   organizationId: this.organizationId,
-    //   pipelineId: this.pipelineId,
-    //   retrieveDocumentsRequest: { question, numResults },
-    // });
-    // return response.documents || [];
-
     try {
-      // Mock financial documents for demonstration
-      const mockDocs = this.getMockDocuments();
+      // Use the exact endpoint format from Vectorize dashboard
+      const url = `https://api.vectorize.io/v1/org/${this.organizationId}/pipelines/${this.pipelineId}/retrieval`;
+      console.log(`🔍 Vectorize URL:`, url);
       
-      // Score documents based on keyword matching
-      const queryWords = question.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-      const scoredDocs = mockDocs.map(doc => {
-        let score = 0.5;
-        queryWords.forEach(word => {
-          if (doc.text.toLowerCase().includes(word)) score += 0.15;
-          if (doc.source_display_name.toLowerCase().includes(word)) score += 0.1;
-        });
-        return { ...doc, similarity: Math.min(0.99, score), relevancy: Math.min(0.99, score) };
+      // Real Vectorize API call
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          question,
+          numResults,
+        }),
       });
 
-      // Sort by relevancy and limit results
-      const results = scoredDocs
-        .sort((a, b) => b.relevancy - a.relevancy)
-        .slice(0, numResults);
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error(`❌ Vectorize API error: ${response.status} ${response.statusText}`);
+        console.error(`❌ Error body:`, errorBody);
+        // Fallback to mock data on error
+        console.log('⚠️ Falling back to mock documents');
+        return this.getMockFallback(question, numResults);
+      }
 
-      console.log(`✅ Vectorize: Retrieved ${results.length} documents`);
-      return results;
+      const data = await response.json();
+      const documents = data.documents || [];
+      
+      console.log(`✅ Vectorize: Retrieved ${documents.length} documents from API`);
+      return documents;
     } catch (error: any) {
-      console.error("Vectorize API Error:", error);
-      throw new Error(
-        `Failed to retrieve documents from Vectorize: ${error?.message || "Unknown error"}`
-      );
+      console.error("❌ Vectorize API Error:", error);
+      console.log('⚠️ Falling back to mock documents due to error');
+      return this.getMockFallback(question, numResults);
     }
+  }
+
+  private getMockFallback(question: string, numResults: number): VectorizeDocument[] {
+    const mockDocs = this.getMockDocuments();
+    
+    // Score documents based on keyword matching
+    const queryWords = question.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+    const scoredDocs = mockDocs.map(doc => {
+      let score = 0.5;
+      queryWords.forEach(word => {
+        if (doc.text.toLowerCase().includes(word)) score += 0.15;
+        if (doc.source_display_name.toLowerCase().includes(word)) score += 0.1;
+      });
+      return { ...doc, similarity: Math.min(0.99, score), relevancy: Math.min(0.99, score) };
+    });
+
+    // Sort by relevancy and limit results
+    const results = scoredDocs
+      .sort((a, b) => b.relevancy - a.relevancy)
+      .slice(0, numResults);
+
+    console.log(`✅ Vectorize (Mock): Retrieved ${results.length} documents`);
+    return results;
   }
 
   formatDocumentsForContext(documents: VectorizeDocument[]): string {
@@ -206,6 +230,48 @@ export class VectorizeService {
         "ESG and Sustainable Investing",
         "https://example.com/esg-investing",
         "ESG investing (Environmental, Social, and Governance) integrates ethical considerations into investment decisions. ESG factors: Environmental (climate change impact, renewable energy, waste management), Social (labor practices, diversity, community relations), Governance (board diversity, executive compensation, shareholder rights). Approaches: Negative Screening (excluding tobacco, weapons, fossil fuels), Positive Screening (investing in clean energy, sustainable companies), ESG Integration (considering ESG factors alongside financial metrics)."
+      ),
+      createDoc(
+        "doc-11",
+        "Credit Spreads: Bull Put and Bear Call Strategies",
+        "https://example.com/credit-spreads",
+        "Credit spreads are options strategies where you sell one option and buy another option of the same type (both calls or both puts) with the same expiration but different strike prices. You receive a net credit upfront. BULL PUT CREDIT SPREAD: Used when moderately bullish. Sell a put at higher strike, buy a put at lower strike. Max profit = credit received. Max loss = (strike difference - credit) × 100. Example: SPY at $450. Sell $445 put, buy $440 put for $1.50 credit. Max profit $150, max loss $350. BEAR CALL CREDIT SPREAD: Used when moderately bearish. Sell a call at lower strike, buy a call at higher strike. Same risk/reward profile. Benefits: Defined risk, high probability of profit (typically 60-80%), benefits from theta decay. Best in moderate IV environments. Ideal for income generation."
+      ),
+      createDoc(
+        "doc-12",
+        "Options Greeks: Delta, Gamma, Theta, Vega",
+        "https://example.com/options-greeks",
+        "Options Greeks measure how option prices change with market conditions. DELTA: Rate of change in option price per $1 move in underlying. Calls: 0 to 1, Puts: 0 to -1. Delta 0.50 means option moves $0.50 per $1 stock move. Also approximates probability of expiring ITM. GAMMA: Rate of change of delta. Higher gamma = delta changes faster. Highest near ATM options. THETA: Time decay per day. Always negative for long options. Accelerates in final 30 days. Short options benefit from theta decay. VEGA: Sensitivity to 1% change in implied volatility. Long options have positive vega (benefit from IV increase). Short options have negative vega. Understanding Greeks is essential for managing options risk and selecting strategies."
+      ),
+      createDoc(
+        "doc-13",
+        "Iron Condor Strategy for Neutral Markets",
+        "https://example.com/iron-condor",
+        "Iron Condor is a neutral options strategy combining a bull put spread and bear call spread. Used when expecting low volatility and range-bound price action. STRUCTURE: Sell OTM put, buy further OTM put (bull put spread). Sell OTM call, buy further OTM call (bear call spread). Collect premium from both spreads. EXAMPLE: Stock at $100. Sell $95 put, buy $90 put. Sell $105 call, buy $110 call. Collect $2.00 total credit ($200). Max profit: $200 (if stock stays between $95-$105 at expiration). Max loss: $300 (width of spread minus credit). Break-evens: $93 and $107. MANAGEMENT: Close at 50% max profit. Adjust or close if price approaches short strikes. Best in high IV environments (sell expensive premium). Typical probability of profit: 60-70%."
+      ),
+      createDoc(
+        "doc-14",
+        "Implied Volatility and Options Pricing",
+        "https://example.com/implied-volatility",
+        "Implied Volatility (IV) represents the market's expectation of future price movement. Higher IV = more expensive options. Lower IV = cheaper options. IV RANK: Where current IV stands relative to its 52-week range. IV Rank 80+ = high (good for selling premium). IV Rank below 30 = low (good for buying options). IV PERCENTILE: Percentage of days in past year that IV was lower than today. STRATEGIES BY IV: HIGH IV (sell premium): Credit spreads, iron condors, covered calls, cash-secured puts. LOW IV (buy options): Debit spreads, long calls/puts, calendar spreads. IV CRUSH: Sharp drop in IV after earnings or events. Hurts long options even if direction is correct. Always check IV before entering trades. Use IV rank/percentile, not absolute IV number."
+      ),
+      createDoc(
+        "doc-15",
+        "Vertical Spreads: Debit vs Credit",
+        "https://example.com/vertical-spreads",
+        "Vertical spreads involve buying and selling options of same type and expiration but different strikes. DEBIT SPREADS (pay to enter): Bull Call Spread: Buy lower strike call, sell higher strike call (bullish). Bear Put Spread: Buy higher strike put, sell lower strike put (bearish). Lower probability of profit but defined risk. Max profit = spread width - debit paid. CREDIT SPREADS (receive premium): Bull Put Spread: Sell higher strike put, buy lower strike put (bullish). Bear Call Spread: Sell lower strike call, buy higher strike call (bearish). Higher probability of profit. Max profit = credit received. CHOOSING: Debit spreads for strong directional conviction. Credit spreads for income and high probability. Both have defined risk (max loss = spread width minus credit/plus debit). Manage at 50% max profit or 2x max loss."
+      ),
+      createDoc(
+        "doc-16",
+        "Long Straddle: Volatility Play Strategy",
+        "https://example.com/long-straddle",
+        "A long straddle is a neutral options strategy used when expecting significant price movement but uncertain of direction. STRUCTURE: Buy ATM call and buy ATM put with same strike and expiration. EXAMPLE: Stock at $100. Buy $100 call for $3.00. Buy $100 put for $3.00. Total cost: $6.00 ($600). PROFIT POTENTIAL: Unlimited upside if stock rallies above $106 (strike + total premium). Substantial profit if stock drops below $94 (strike - total premium). Max loss: $600 (total premium paid) if stock stays at $100 at expiration. BEST USED: Before earnings announcements, FDA approvals, or major events. When IV is low (cheap options) but expecting IV expansion. RISKS: IV crush after event can cause losses even if direction is correct. Time decay (theta) works against you - loses value daily. Need large move to overcome premium paid. Break-evens: $94 and $106. Typical use: 30-45 DTE, close before expiration or when profit target hit (often 50-100% of premium paid)."
+      ),
+      createDoc(
+        "doc-17",
+        "Short Straddle: Income Strategy for Range-Bound Markets",
+        "https://example.com/short-straddle",
+        "A short straddle is an advanced neutral strategy for experienced traders expecting minimal price movement. STRUCTURE: Sell ATM call and sell ATM put with same strike and expiration. Collect premium from both. EXAMPLE: Stock at $100. Sell $100 call for $3.00. Sell $100 put for $3.00. Total credit: $6.00 ($600). PROFIT: Max profit $600 if stock stays exactly at $100 at expiration. Profit zone: $94 to $106 (strike ± premium collected). RISK: UNLIMITED upside risk if stock rallies. Substantial downside risk if stock crashes. MANAGEMENT: Close at 50% max profit. Consider closing or adjusting if stock moves beyond 1 standard deviation. Use stop loss at 2x max profit (close at $1,200 loss). REQUIREMENTS: Requires significant buying power and margin. Not suitable for beginners. Best in high IV environments (collect more premium). Probability of profit typically 50-60%. ALTERNATIVES: Iron condor (defined risk version) is safer for most traders."
       ),
     ];
   }

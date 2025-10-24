@@ -16,15 +16,18 @@ export const maxDuration = 30
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('\n🔥 ========================================');
     console.log('🔥 RAG API: Request received');
     const { messages } = await request.json();
     console.log('🔥 RAG API: Messages received:', messages?.length || 0, 'messages');
+    console.log('🔥 Last message:', messages[messages.length - 1]?.content || 'N/A');
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response("Messages array is required", { status: 400 })
     }
 
-    console.log('🤖 Using RAG agent with document retrieval tool')
+    console.log('🤖 Using RAG agent with document retrieval tool');
+    console.log('🔧 Available tools: retrieveKnowledgeBase');
 
     // Convert UI messages to model messages format
     const modelMessages = convertToModelMessages(messages)
@@ -38,6 +41,15 @@ export async function POST(request: NextRequest) {
       stopWhen: stepCountIs(10), // ⚡ THIS MAKES IT AN AGENT!
       tools: {
         retrieveKnowledgeBase: retrieveDocumentsTool, // Match reference naming
+      },
+      onStepFinish: (step) => {
+        console.log('📊 Step finished:', {
+          toolCalls: step.toolCalls?.length || 0,
+          toolResults: step.toolResults?.length || 0,
+        });
+        if (step.toolCalls && step.toolCalls.length > 0) {
+          console.log('🔧 Tool calls made:', step.toolCalls.map(tc => tc.toolName));
+        }
       },
     })
 

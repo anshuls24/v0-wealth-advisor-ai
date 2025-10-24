@@ -104,9 +104,10 @@ export default function Home() {
   const { messages, sendMessage, status, error } = useChat({
     id: "advisor",
     api: "/api/conversation",
-    body: {
+    body: () => ({
       userId,
-    },
+      profile, // Pass current profile to backend
+    }),
     onFinish: async (message) => {
       console.log('🎯 onFinish called - simplified version')
       console.log('📊 Messages array length:', messages.length)

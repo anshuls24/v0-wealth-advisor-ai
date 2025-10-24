@@ -5,7 +5,7 @@ export interface ClientProfile {
     long_term: string | null;
   };
   risk: {
-    tolerance: string | null;
+    tolerance: string | null; // 1-10 scale or low/moderate/aggressive/high
     history: string | null;
   };
   financials: {
@@ -16,6 +16,20 @@ export interface ClientProfile {
   time_horizon: string | null;
   preferences: string[];
   expectations: string[];
+  
+  // Options-specific fields
+  options?: {
+    experience_level?: string | null; // beginner | intermediate | advanced
+    assignment_tolerance?: boolean | null; // comfortable with assignment?
+    greeks_familiarity?: boolean | null; // familiar with Greeks, IV, theta?
+    strategy_preference?: string | null; // credit_spreads | debit_spreads | condors | long_options | protective
+    directional_bias?: string | null; // bullish | bearish | neutral | volatility_focused
+    preferred_underlyings?: string[]; // SPY, QQQ, TSLA, AAPL, etc.
+    iv_comfort?: string | null; // high_iv | low_iv | moderate_iv
+    holding_period_days?: number | null; // typical DTE preference
+    risk_structure_preference?: string | null; // defined_risk | undefined_risk
+    learning_style?: string | null; // strategy_ideas | learning_help | both | automated_alerts
+  };
 }
 
 export const EMPTY_PROFILE: ClientProfile = {
@@ -36,6 +50,18 @@ export const EMPTY_PROFILE: ClientProfile = {
   time_horizon: null,
   preferences: [],
   expectations: [],
+  options: {
+    experience_level: null,
+    assignment_tolerance: null,
+    greeks_familiarity: null,
+    strategy_preference: null,
+    directional_bias: null,
+    preferred_underlyings: [],
+    iv_comfort: null,
+    holding_period_days: null,
+    risk_structure_preference: null,
+    learning_style: null,
+  },
 };
 
 export function getMissingFields(profile: ClientProfile): string[] {
