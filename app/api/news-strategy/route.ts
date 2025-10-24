@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
 import { createOpenAI } from "@ai-sdk/openai";
 import { streamText } from "ai";
-import { retrieveDocumentsTool } from "@/components/agent/tools/retrieve-documents";
+import { createRetrieveDocumentsTool } from "@/components/agent/tools/retrieve-documents";
 import { getPolygonMCPClient } from "@/lib/mcp";
+import { ClientProfile } from "@/lib/profile-schema";
 
 // Explicit model client with API key for production
 const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
@@ -11,7 +12,20 @@ export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
-    const { ticker, newsText, userProfile, limit = 3 } = await req.json();
+    const { ticker, newsText, userProfile, limit = 3 }: { 
+      ticker?: string; 
+      newsText?: string; 
+      userProfile?: ClientProfile; 
+      limit?: number 
+    } = await req.json();
+    
+    console.log('📰 News-Strategy: Request received with profile:', {
+      hasTicker: !!ticker,
+      hasNews: !!newsText,
+      hasProfile: !!userProfile,
+      riskTolerance: userProfile?.risk?.tolerance || 'unknown',
+      experience: userProfile?.options?.experience_level || 'unknown',
+    });
 
     if (!ticker && !newsText) {
       return new Response(
@@ -97,8 +111,12 @@ News:\n${combinedNews}
 3) Tailor the description to the profile.`,
     };
 
+    // Create profile-aware RAG tool
+    console.log('🔧 News-Strategy: Creating profile-aware RAG tool');
+    const profileAwareRAGTool = createRetrieveDocumentsTool(userProfile);
+    
     const tools = {
-      retrieveDocuments: retrieveDocumentsTool,
+      retrieveDocuments: profileAwareRAGTool,
     } as const;
 
     const result = await streamText({
@@ -107,6 +125,15 @@ News:\n${combinedNews}
       messages: [userMsg],
       tools,
       temperature: 0.4,
+      onStepFinish: (step) => {
+        if (step.toolCalls && step.toolCalls.length > 0) {
+          console.log('🔧 News-Strategy: Tools called:', step.toolCalls.map(tc => tc.toolName));
+          console.log('👤 News-Strategy: Profile context:', {
+            riskTolerance: userProfile?.risk?.tolerance || 'unknown',
+            experience: userProfile?.options?.experience_level || 'unknown',
+          });
+        }
+      },
     });
 
     return result.toTextStreamResponse();

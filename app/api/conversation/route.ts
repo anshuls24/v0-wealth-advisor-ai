@@ -9,7 +9,7 @@ import {
   getProfileCompletionPercentage
 } from "@/lib/profile-schema"
 import { extractProfileUpdates, applyProfileUpdates } from "@/lib/profile-extractor"
-import { retrieveDocumentsTool } from "@/components/agent/tools/retrieve-documents"
+import { createRetrieveDocumentsTool } from "@/components/agent/tools/retrieve-documents"
 import { getPolygonMCPClient } from "@/lib/mcp"
 
 // Initialize OpenAI with explicit API key for production environments
@@ -186,9 +186,21 @@ Be friendly, professional, and encouraging. Then proceed to ask your first disco
       ...convertedMessages,
     ]
 
-    // Initialize tools: Polygon MCP + RAG
+    // Initialize tools: Profile-aware RAG + Polygon MCP
+    console.log('🔧 Conversation: Initializing tools with user profile...');
+    console.log('👤 Conversation: Profile being injected:', {
+      hasProfile: !!updatedProfile,
+      riskTolerance: updatedProfile?.risk?.tolerance || 'unknown',
+      experience: updatedProfile?.options?.experience_level || 'unknown',
+      strategyPref: updatedProfile?.options?.strategy_preference || 'unknown',
+      completion: profilePercentage + '%',
+    });
+    
+    // Create profile-aware RAG tool
+    const profileAwareRAGTool = createRetrieveDocumentsTool(updatedProfile);
+    
     let tools: Record<string, any> = {
-      retrieveKnowledgeBase: retrieveDocumentsTool,
+      retrieveKnowledgeBase: profileAwareRAGTool,
     };
 
     // Try to add Polygon MCP tools if available (Railway only)
@@ -198,10 +210,13 @@ Be friendly, professional, and encouraging. Then proceed to ask your first disco
         await polygonClient.connect();
         const polygonTools = await polygonClient.getTools();
         tools = { ...tools, ...polygonTools };
-        console.log(`✅ Conversation: Added ${Object.keys(polygonTools).length} Polygon tools`);
+        console.log(`✅ Conversation: Added ${Object.keys(polygonTools).length} Polygon MCP tools`);
+        console.log(`📋 Conversation: Total tools available: ${Object.keys(tools).length} (RAG + MCP)`);
       } catch (err) {
-        console.warn('⚠️ Conversation: Polygon MCP unavailable, using RAG only:', err);
+        console.warn('⚠️ Conversation: Polygon MCP unavailable, using profile-aware RAG only:', err);
       }
+    } else {
+      console.log(`📋 Conversation: Development mode - using profile-aware RAG tool only`);
     }
 
     const result = streamText({
@@ -209,6 +224,20 @@ Be friendly, professional, and encouraging. Then proceed to ask your first disco
       messages: allMessages,  
       temperature: 0.7,
       tools,
+      onStepFinish: (step) => {
+        // Log tool usage with profile context
+        if (step.toolCalls && step.toolCalls.length > 0) {
+          console.log('🔧 Conversation: Tools called in this step:', step.toolCalls.map(tc => tc.toolName));
+          console.log('👤 Conversation: Profile context for these tools:', {
+            riskTolerance: updatedProfile?.risk?.tolerance || 'unknown',
+            experience: updatedProfile?.options?.experience_level || 'unknown',
+            strategyPref: updatedProfile?.options?.strategy_preference || 'unknown',
+          });
+        }
+        if (step.toolResults && step.toolResults.length > 0) {
+          console.log('✅ Conversation: Tool results received:', step.toolResults.length);
+        }
+      },
     })
 
     // Log profile updates for client to pick up (simpler approach than stream injection)
