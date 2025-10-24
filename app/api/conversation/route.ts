@@ -290,10 +290,15 @@ Example response: "While I can't access real-time market data for QQQ right now,
           console.log('✅ Tool results received:', step.toolResults.length);
           step.toolResults.forEach((tr, idx) => {
             console.log(`  [${idx + 1}] Tool: ${tr.toolName}`);
-            const resultStr = JSON.stringify(tr.result).substring(0, 300);
-            console.log(`      Result preview:`, resultStr);
-            if ('error' in tr.result) {
-              console.error(`      ❌ Tool error:`, tr.result.error);
+            try {
+              const resultStr = JSON.stringify(tr.result);
+              const preview = resultStr.length > 300 ? resultStr.substring(0, 300) + '...' : resultStr;
+              console.log(`      Result preview:`, preview);
+              if (tr.result && typeof tr.result === 'object' && 'error' in tr.result) {
+                console.error(`      ❌ Tool error:`, tr.result.error);
+              }
+            } catch (e) {
+              console.log(`      Result: [Could not stringify]`);
             }
           });
         }
