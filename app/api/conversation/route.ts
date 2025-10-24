@@ -291,14 +291,19 @@ Example response: "While I can't access real-time market data for QQQ right now,
           step.toolResults.forEach((tr, idx) => {
             console.log(`  [${idx + 1}] Tool: ${tr.toolName}`);
             try {
-              const resultStr = JSON.stringify(tr.result);
-              const preview = resultStr.length > 300 ? resultStr.substring(0, 300) + '...' : resultStr;
-              console.log(`      Result preview:`, preview);
-              if (tr.result && typeof tr.result === 'object' && 'error' in tr.result) {
-                console.error(`      ❌ Tool error:`, tr.result.error);
+              // Check if result exists before stringifying
+              if (tr.result === undefined || tr.result === null) {
+                console.log(`      Result: [${tr.result === undefined ? 'undefined' : 'null'}]`);
+              } else {
+                const resultStr = JSON.stringify(tr.result);
+                const preview = resultStr.length > 300 ? resultStr.substring(0, 300) + '...' : resultStr;
+                console.log(`      Result preview:`, preview);
+                if (typeof tr.result === 'object' && 'error' in tr.result) {
+                  console.error(`      ❌ Tool error:`, tr.result.error);
+                }
               }
             } catch (e) {
-              console.log(`      Result: [Could not stringify]`);
+              console.log(`      Result: [Could not stringify - ${e instanceof Error ? e.message : 'unknown error'}]`);
             }
           });
         }
