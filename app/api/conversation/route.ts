@@ -225,6 +225,59 @@ Be friendly, professional, and encouraging. Then proceed to ask your first disco
     
     let mcpAvailable = false;
 
+    // Helper: infer a ticker from latest user content
+    const inferTickerFromLatest = (): string | null => {
+      try {
+        const latest = messages?.[messages.length - 1];
+        const content: string = latest?.content || latest?.text || '';
+        const match = (content || '').toUpperCase().match(/\b[A-Z]{1,5}\b/);
+        return match ? match[0] : null;
+      } catch {
+        return null;
+      }
+    };
+
+    // Helper: Wrap polygon tools to ensure required args and safer defaults
+    const wrapPolygonTools = (rawTools: Record<string, any>): Record<string, any> => {
+      const wrapped: Record<string, any> = { ...rawTools };
+
+      const safeWrap = (toolName: string, ensureArgs: (args: any) => any) => {
+        const t = rawTools[toolName];
+        if (t && typeof t.execute === 'function') {
+          wrapped[toolName] = {
+            ...t,
+            execute: async (args: any) => {
+              const fixedArgs = ensureArgs(args);
+              try {
+                return await t.execute(fixedArgs);
+              } catch (e) {
+                return { error: e instanceof Error ? e.message : String(e) };
+              }
+            }
+          };
+        }
+      };
+
+      // Ensure ticker present for common tools
+      const ensureTicker = (args: any) => {
+        const a = typeof args === 'object' && args !== null ? { ...args } : {};
+        if (!a.ticker) {
+          const inferred = inferTickerFromLatest();
+          if (inferred) a.ticker = inferred;
+        }
+        return a;
+      };
+
+      safeWrap('list_ticker_news', (args) => {
+        const a = ensureTicker(args);
+        if (!a.limit) a.limit = 5;
+        return a;
+      });
+      safeWrap('get_snapshot_ticker', ensureTicker);
+      safeWrap('get_previous_close_agg', ensureTicker);
+      return wrapped;
+    };
+
     // Try to add Polygon MCP tools if available (Railway only)
     // Add timeout to prevent hanging
     if (process.env.NODE_ENV === 'production') {
@@ -244,7 +297,9 @@ Be friendly, professional, and encouraging. Then proceed to ask your first disco
           setTimeout(() => reject(new Error('MCP connection timeout (5s)')), 5000)
         );
 
-        const polygonTools = await Promise.race([mcpPromise, timeoutPromise]) as Record<string, any>;
+        let polygonTools = await Promise.race([mcpPromise, timeoutPromise]) as Record<string, any>;
+        // Wrap tools to harden argument handling
+        polygonTools = wrapPolygonTools(polygonTools);
         
         tools = { ...tools, ...polygonTools };
         mcpAvailable = true;
