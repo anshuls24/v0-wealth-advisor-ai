@@ -1,0 +1,51 @@
+QUESTION/ PROBLEM TO SOLVE:
+
+Now assume the first 40 years of the sample are available only as end-of-month observations, 
+while the last 10 years remain available at daily frequency.
+Develop and implement a method to estimate the same 1-month, 3-month, and 
+6-month shocks under this data limitation.
+
+Your approach should address the fact that higher-frequency 
+information is unavailable for most of the sample, and should aim to infer 
+shock estimates that are as comparable as possible to those from Part A. 
+If you have multiple approaches at least one of them should be the construction/simulation 
+of daily data.
+
+
+
+SOLUTION TO BE APPLIED:
+
+1. If you have multiple approaches at least one of them should be 
+the construction/simulation of daily data. 
+(DAILY CONSTRUCTION ESTIMATION)
+
+REFER TO PARTB_1.png:
+PARTB_1.png — t-GARCH setup for simulating the early 40 years
+Take the last 10 years of daily closes.
+Compute daily returns.
+Fit a t-GARCH model on those daily returns.
+Use the fitted parameters to simulate missing daily paths for the earlier 40 years.
+It also defines simulated daily returns and volatilities (\tilde{r}{m,j}), (\tilde{\sigma}{m,j}) as coming from that t-GARCH calibrated on the 10-year daily sample.
+
+
+REFER TO PARTB_2.png:
+Observe month-end levels (M_m, M_{m+1}).
+Observed monthly log return: (R_m^{(M)} = \log(M_{m+1}/M_m)).
+Simulate (D_m) daily (\tilde{r}{m,j}) and (\tilde{\sigma}{m,j}) from the fitted t-GARCH.
+Simulated monthly total: (\tilde{R}m = \sum_j \tilde{r}{m,j}).
+Gap: (\Delta_m = R_m^{(M)} - \tilde{R}_m).
+Volatility weights: (w_{m,j} = \tilde{\sigma}{m,j} / \sum_k \tilde{\sigma}{m,k}).
+Corrected daily returns: (r_{m,j}^* = \tilde{r}{m,j} + w{m,j}\Delta_m).
+Reconstruct daily prices from (r_{m,j}^*)
+Repeat the above process multiple times to get average simulated paths + 
+an estimate of drawdowns for each horizon and percentiles
+
+
+2. Develop and implement a method to estimate the same 1-month, 3-month, and 6-month shocks under this data limitation. 
+(TAIL ESTIMATION)
+
+The following steps:
+- Construct month-end horizon returns and convert to losses
+- Choose Threshold
+- Fit a Generalized Pareto Distribution to losses above threshold (Extreme Value Theorem).
+- Use the fitted tail to estimate the desired adverse quantiles.
