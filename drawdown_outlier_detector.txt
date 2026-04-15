@@ -1,0 +1,503 @@
+from dataclasses import dataclass, field
+from typing import Optional, Union
+
+import numpy as np
+import pandas as pd
+
+
+@dataclass
+class EMAOutlierConfig:
+    """Configuration for EMA-based relative outlier detection.
+
+    A data point is flagged as an outlier if
+    (profit - EMA(span)) / profit > relative_threshold.
+
+    Args:
+        enabled: Enable/disable EMA-based flagging.
+        span: EMA span in samples.
+        relative_threshold: Relative deviation threshold above EMA to flag an outlier
+            (e.g., 0.25 means 25% above EMA is an outlier).
+        min_periods: Minimum periods required to start the EMA; defaults to `span`.
+        column_name: Optional custom name for the EMA column. Defaults to `ema{span}`.
+
+    Example:
+        >>> ema_cfg = EMAOutlierConfig(enabled=True, span=50, relative_threshold=0.2)
+
+    """
+
+    enabled: bool = True
+    span: int = 42
+    relative_threshold: float = 0.25
+    min_periods: Optional[int] = None
+    column_name: Optional[str] = None
+
+    def resolved_min_periods(self) -> int:
+        return self.min_periods if self.min_periods is not None else self.span
+
+    def resolved_column_name(self) -> str:
+        return self.column_name or f'ema{self.span}'
+
+
+@dataclass
+class STDOutlierConfig:
+    """Configuration for rolling mean/std outlier detection.
+
+    A data point is flagged as an outlier if
+    profit > rolling_mean(window) + k * rolling_std(window).
+
+    Args:
+        enabled: Enable/disable STD-based flagging.
+        window: Rolling window size in samples.
+        k: Number of standard deviations above the rolling mean to flag.
+        min_periods: Minimum periods for rolling stats.
+
+    Example:
+        >>> std_cfg = STDOutlierConfig(enabled=True, window=30, k=3.0)
+
+    """
+
+    enabled: bool = True
+    window: int = 30
+    k: float = 3.0
+    min_periods: int = 1
+
+
+@dataclass
+class WeightedMADOutlierConfig:
+    """Configuration for weighted Median Absolute Deviation (MAD) outlier detection.
+
+    The algorithm computes a weighted median and weighted MAD over the last `window`
+    values, with exponentially decaying weights controlled by `beta` (newer values
+    receive higher weight). A point is flagged as an outlier if
+    value > weighted_median + k * weighted_mad.
+
+    Args:
+        enabled: Enable/disable MAD-based flagging.
+        window: Rolling window size in samples used for weighted statistics.
+        beta: Exponential decay rate for weights (larger -> faster decay).
+        k: Threshold multiplier for MAD.
+
+    Example:
+        >>> mad_cfg = WeightedMADOutlierConfig(enabled=True, window=60, beta=0.04, k=3.5)
+
+    """
+
+    enabled: bool = True
+    window: int = 60
+    beta: float = 0.04
+    k: float = 3.5
+
+
+@dataclass
+class DrawdownOutlierConfig:
+    """Top-level configuration for the drawdown outlier detector.
+
+    The `reference` series is computed as the rolling maximum of
+    `profit_without_outliers`, where `profit_without_outliers` holds the most recent
+    non-outlier profit value according to the enabled detectors.
+
+    Args:
+        profit_column: Name of the profit column in your DataFrame.
+        datetime_column: Name of the datetime column to set as index (if present).
+            Set to None if your DataFrame already uses a DatetimeIndex.
+        reference_window: Size of the rolling window for the reference computation.
+            Accepts either an integer (samples) or a pandas offset alias string like
+            "90D". If string is used, the DataFrame index must be a DatetimeIndex.
+        reference_closed: Which side of the time window is closed for rolling operations
+            when `reference_window` is a string. Common values: "left" or "right".
+        copy_dataframe: If True, operate on a copy of the input DataFrame.
+        ema: EMA-based outlier detector configuration.
+        std: Rolling mean/std outlier detector configuration.
+        mad: Weighted MAD outlier detector configuration.
+
+    Example:
+        >>> cfg = DrawdownOutlierConfig(
+        ...     profit_column="profit",
+        ...     datetime_column="datetime",
+        ...     reference_window="90D",
+        ...     ema=EMAOutlierConfig(span=42, relative_threshold=0.2),
+        ... )
+
+    """
+
+    profit_column: str = 'profit'
+    datetime_column: Optional[str] = 'datetime'
+    reference_window: Union[int, str] = '90D'
+    reference_closed: str = 'left'
+    copy_dataframe: bool = True
+
+    ema: EMAOutlierConfig = field(default_factory=EMAOutlierConfig)
+    std: STDOutlierConfig = field(default_factory=STDOutlierConfig)
+    mad: WeightedMADOutlierConfig = field(
+        default_factory=WeightedMADOutlierConfig
+    )
+
+
+class DrawdownOutlierDetector:
+    """
+    Detect outliers and compute adjusted drawdowns with configurable strategies.
+
+    Quick start
+    -----------
+    >>> import pandas as pd
+    >>> from slbacktest.models.drawdown_outlier_detector import (
+    ...     DrawdownOutlierDetector, DrawdownOutlierConfig,
+    ...     EMAOutlierConfig, STDOutlierConfig, WeightedMADOutlierConfig,
+    ... )
+    >>> cfg = DrawdownOutlierConfig(
+    ...     profit_column="profit",
+    ...     datetime_column="datetime",
+    ...     reference_window="90D",
+    ...     ema=EMAOutlierConfig(enabled=True, span=42, relative_threshold=0.25),
+    ...     std=STDOutlierConfig(enabled=True, window=30, k=3.0),
+    ...     mad=WeightedMADOutlierConfig(enabled=True, window=60, beta=0.04, k=3.5),
+    ... )
+    >>> detector = DrawdownOutlierDetector(cfg)
+    >>> result = detector.compute(df, funds=500_000.0)
+    >>> result[["profit", "reference", "drawdown_percentage"]].tail()
+
+    Notes
+    -----
+        - Enable or disable any of the EMA/STD/MAD detectors through the config.
+        - When `return_outliers_df=True`, the returned DataFrame includes convenient
+          columns for diagnostics and plotting: `profit_without_outliers`, `reference`,
+          `drawdown`, and `drawdown_percentage` in addition to outlier flags.
+
+    Outlier Detection Methods
+    -------------------------
+        The detector provides three complementary outlier detection strategies:
+
+        1. EMA (Exponential Moving Average):
+           Problem Solved: Detects sudden spikes or drops relative to recent trend
+           How it works: Flags values when (profit - EMA) / profit > relative_threshold
+
+           Pros:
+               - Adapts quickly to trend changes through exponential weighting
+               - Good for detecting relative anomalies in trending data
+               - Configurable sensitivity via span and threshold
+
+           Cons:
+               - Can miss outliers during trend transitions
+               - Sensitive to choice of span parameter
+
+           When to use:
+               - Time series with clear trends where you want to detect deviations
+               - Financial data with momentum characteristics
+               - When you need fast adaptation to changing baselines
+
+        2. STD (Standard Deviation):
+           Problem Solved: Identifies statistically extreme values beyond normal variation
+           How it works: Flags values > rolling_mean + k * rolling_std over a window
+
+           Pros:
+               - Statistically rigorous approach based on normal distribution
+               - Intuitive interpretation (e.g., "3 standard deviations above mean")
+               - Works well with stationary data
+
+           Cons:
+               - Sensitive to outliers in the window (mean/std are not robust)
+               - Assumes normal distribution of data
+               - Fixed window may not adapt to changing volatility
+
+           When to use:
+               - Data following roughly normal distribution
+               - When you need statistical rigor and interpretability
+               - Stable processes with consistent volatility
+
+        3. MAD (Weighted Median Absolute Deviation):
+           Problem Solved: Robust detection of outliers in non-normal, heavy-tailed data
+           How it works: Flags values > weighted_median + k * weighted_mad with exponential decay
+
+           Pros:
+               - Robust to outliers (uses median instead of mean)
+               - Handles non-normal distributions well
+               - Exponential weighting adapts to recent changes
+               - Better for financial returns with fat tails
+
+           Cons:
+               - More computationally intensive
+               - Less intuitive than standard deviation approach
+               - Requires tuning of beta decay parameter
+
+           When to use:
+               - Financial time series with heavy tails or outliers
+               - Non-stationary data with changing distributions
+               - When robustness to outliers in the data is critical
+               - Volatile markets where traditional std-based methods fail
+    """
+
+    def __init__(self, config: Optional[DrawdownOutlierConfig] = None) -> None:
+        self.config = config or DrawdownOutlierConfig()
+
+    def compute(
+        self,
+        profit_df: pd.DataFrame,
+        funds: float | None = None,
+        config: Optional[DrawdownOutlierConfig] = None,
+    ) -> pd.DataFrame:
+        """Compute outliers and adjusted drawdowns.
+
+        The method flags outliers using the enabled detectors, constructs a
+        `profit_without_outliers` series from the last observed non-outlier values,
+        computes a rolling `reference` as the max of `profit_without_outliers`, and
+        returns a DataFrame with outlier flags, intermediate calculations, and
+        percentage drawdowns relative to `reference` and `funds`.
+
+        Args:
+            profit_df: Input DataFrame containing at least the profit column and,
+                optionally, a datetime column. If `datetime_column` is configured and
+                present, it will be parsed to datetime and set as the index.
+            funds: Capital base used to express drawdowns in percentage terms:
+                drawdown_percentage = ((profit - reference) / funds) * 100.
+                If None, drawdown_percentage column will not be computed.
+            config: Optional configuration to override the instance configuration.
+
+        Returns:
+            pd.DataFrame: Enhanced DataFrame with the following columns:
+                - Original profit column (as configured in `profit_column`).
+                - EMA column if enabled (e.g., `ema42`).
+                - Outlier flags: `ema_outlier`, `std_outlier`, `mad_outlier` (as enabled).
+                - `profit_without_outliers`: last observed non-outlier profit level.
+                - `reference`: rolling max of `profit_without_outliers` over the configured window.
+                - `drawdown`: profit minus `reference` (absolute units of the profit column).
+                - `drawdown_percentage`: ((profit - reference) / funds) * 100 (if funds provided).
+
+        Raises:
+            KeyError: If the configured profit column is missing from `profit_df`.
+            ValueError: If a string `reference_window` is given but the index is not a DatetimeIndex.
+
+        Example:
+            >>> detector = DrawdownOutlierDetector()
+            >>> result_df = detector.compute(df, funds=1_000_000)
+            >>> result_df["drawdown_percentage"].describe()
+            >>> result_df[["ema_outlier", "std_outlier", "mad_outlier"]].mean()
+        """
+
+        if config is not None:
+            self.config = config
+
+        if self.config.copy_dataframe:
+            df = profit_df.copy()
+        else:
+            df = profit_df
+
+        # Prepare index
+        if (
+            self.config.datetime_column is not None
+            and self.config.datetime_column in df.columns
+        ):
+            df[self.config.datetime_column] = pd.to_datetime(
+                df[self.config.datetime_column]
+            )
+            df = df.set_index(self.config.datetime_column)
+
+        profit_col = self.config.profit_column
+        if profit_col not in df.columns:
+            raise KeyError(f"DataFrame must contain column '{profit_col}'")
+
+        # Ensure numeric profit
+        df[profit_col] = pd.to_numeric(df[profit_col], errors='coerce')
+        profit = df[profit_col]
+
+        # EMA-based outliers
+        ema_flag_name = 'ema_outlier'
+        if self.config.ema.enabled:
+            ema_col = self.config.ema.resolved_column_name()
+            df[ema_col] = profit.ewm(
+                span=self.config.ema.span,
+                adjust=False,
+                min_periods=self.config.ema.resolved_min_periods(),
+            ).mean()
+
+            # Avoid division by zero; NaNs will map to False later
+            profit_nonzero = profit.replace(0, np.nan)
+            ratio = (profit_nonzero - df[ema_col]) / profit_nonzero
+            df[ema_flag_name] = ratio > self.config.ema.relative_threshold
+            df[ema_flag_name] = df[ema_flag_name].fillna(False)
+        else:
+            df[ema_flag_name] = False
+
+        # STD-based outliers
+        std_flag_name = 'std_outlier'
+        if self.config.std.enabled:
+            rolling = profit.rolling(
+                window=self.config.std.window,
+                min_periods=self.config.std.min_periods,
+            )
+            df[std_flag_name] = profit > (
+                rolling.mean() + self.config.std.k * rolling.std()
+            )
+            df[std_flag_name] = df[std_flag_name].fillna(False)
+        else:
+            df[std_flag_name] = False
+
+        # For MAD, replace outliers from the preceding detectors with last non-outlier value
+        candidates_for_replacement = [
+            name
+            for name, enabled in (
+                (ema_flag_name, self.config.ema.enabled),
+                (std_flag_name, self.config.std.enabled),
+            )
+            if enabled
+        ]
+
+        replaced_series = self._process_outliers_with_last_non_outlier(
+            original=profit,
+            df_flags=df,
+            flag_columns=candidates_for_replacement,
+        )
+
+        # Weighted MAD-based outliers
+        mad_flag_name = 'mad_outlier'
+        if self.config.mad.enabled:
+            df[mad_flag_name] = self._weighted_mad_flags(
+                replaced_series,
+                window=self.config.mad.window,
+                beta=self.config.mad.beta,
+                k=self.config.mad.k,
+                warmup=(
+                    self.config.ema.span
+                    if self.config.ema.enabled
+                    else self.config.mad.window
+                ),
+            )
+        else:
+            df[mad_flag_name] = False
+
+        # Build reference based on last non-outlier across all enabled detectors
+        detectors_to_use = [
+            name
+            for name, enabled in (
+                (ema_flag_name, self.config.ema.enabled),
+                (std_flag_name, self.config.std.enabled),
+                (mad_flag_name, self.config.mad.enabled),
+            )
+            if enabled
+        ]
+        df['reference'] = self._process_outliers_with_last_non_outlier(
+            original=profit,
+            df_flags=df,
+            flag_columns=detectors_to_use,
+            return_reference_series=True,
+        )
+
+        # Rolling max of reference; support int or offset window
+        reference = df['reference']
+        ref_window = self.config.reference_window
+        if isinstance(ref_window, str):
+            # Requires DateTimeIndex
+            if not isinstance(df.index, pd.DatetimeIndex):
+                raise ValueError(
+                    'reference_window is a string offset but index is not DatetimeIndex'
+                )
+            reference_max = reference.rolling(
+                window=ref_window, closed=self.config.reference_closed
+            ).max()
+        else:
+            reference_max = reference.rolling(
+                window=int(ref_window), min_periods=1
+            ).max()
+
+        df['drawdown'] = profit - reference_max
+
+        if funds is not None and funds > 0:
+            df['drawdown_percentage'] = (
+                (profit - reference_max) / float(funds)
+            ) * 100.0
+            df['drawdown_percentage'] = df['drawdown_percentage'].round(2)
+
+        df.rename(
+            columns={'reference': 'profit_without_outliers'}, inplace=True
+        )
+        df['reference'] = reference_max
+
+        return df
+
+    @staticmethod
+    def _process_outliers_with_last_non_outlier(
+        original: pd.Series,
+        df_flags: pd.DataFrame,
+        flag_columns: list[str],
+        return_reference_series: bool = False,
+    ) -> pd.Series:
+        """Process outliers by replacing them with the last non-outlier value.
+
+        Args:
+            original: Input series to process
+            df_flags: DataFrame containing outlier flags
+            flag_columns: List of column names containing outlier flags
+            return_reference_series: If False, return original with outliers replaced.
+                                   If True, return reference series with last non-outlier at each position.
+
+        Returns:
+            pd.Series: Either original series with outliers replaced, or reference series
+                      where each position holds the last observed non-outlier value.
+        """
+
+        if return_reference_series:
+            result = pd.Series(index=original.index, dtype=float)
+        else:
+            result = original.copy()
+
+        last_non_outlier: Optional[float] = None
+        for idx in df_flags.index:
+            is_outlier = (
+                df_flags.loc[idx, flag_columns].any() if flag_columns else False
+            )
+            if not is_outlier:
+                last_non_outlier = (
+                    float(original.loc[idx])
+                    if pd.notna(original.loc[idx])
+                    else last_non_outlier
+                )
+            result.loc[idx] = last_non_outlier
+        return result
+
+    @staticmethod
+    def _weighted_mad_flags(
+        series: pd.Series, window: int, beta: float, k: float, warmup: int
+    ) -> pd.Series:
+        """Compute weighted MAD outlier flags over a rolling window.
+
+        Args:
+            series: Input numeric series.
+            window: Rolling window size (number of samples).
+            beta: Exponential decay rate for weights (larger -> faster decay).
+            k: Threshold multiplier for MAD.
+            warmup: Number of initial samples for which flags should be False.
+        """
+
+        values = series.values
+        flags = np.zeros(len(values), dtype=bool)
+
+        for i in range(len(values)):
+            if i < warmup:
+                flags[i] = False
+                continue
+
+            start = max(0, i - window + 1)
+            window_vals = values[start : i + 1]
+
+            # Exponential weights, newest gets highest weight
+            ages = np.arange(len(window_vals) - 1, -1, -1, dtype=float)
+            weights = np.exp(-beta * ages)
+            weights /= weights.sum()
+
+            # Weighted median
+            order = np.argsort(window_vals)
+            sorted_vals = window_vals[order]
+            sorted_w = weights[order]
+            cumsum = np.cumsum(sorted_w)
+            weighted_median = sorted_vals[cumsum >= 0.5][0]
+
+            # Weighted MAD (median(|x - median|)) with same weights
+            deviations = np.abs(window_vals - weighted_median)
+            order_dev = np.argsort(deviations)
+            dev_sorted = deviations[order_dev]
+            w_sorted = weights[order_dev]
+            cumsum_dev = np.cumsum(w_sorted)
+            weighted_mad = dev_sorted[cumsum_dev >= 0.5][0]
+
+            flags[i] = values[i] > (weighted_median + k * weighted_mad)
+
+        return pd.Series(flags, index=series.index, name='mad_outlier')

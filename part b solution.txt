@@ -49,3 +49,30 @@ The following steps:
 - Choose Threshold
 - Fit a Generalized Pareto Distribution to losses above threshold (Extreme Value Theorem).
 - Use the fitted tail to estimate the desired adverse quantiles.
+
+
+
+Building a Generalized Pareto Distribution (GPD) model within the Peaks-Over-Threshold (POT) framework involves a systematic process of threshold selection, parameter estimation, and diagnostic validation. This methodology is often preferred over block maxima because it is less "wasteful of data," utilizing all observations that exceed a high level.
+
+### 1. Methodology: Building the GPD Model
+The construction of a GPD model follows these primary steps:
+
+*   **Define the Excess Distribution:** For a loss distribution $F$ and a high threshold $u$, the model focuses on the **excess distribution** $F_u(x) = P(X - u \leq x | X > u)$, which describes the probability that a loss exceeds $u$ by no more than $x$.
+*   **Threshold Identification:** You must first designate a high threshold $u$. Every observation $X_j$ that exceeds this threshold is identified ($N_u$ total exceedances), and the **excess amounts** are calculated as $Y_j = X_j - u$.
+*   **Theoretical Foundation:** The methodology relies on the **Pickands–Balkema–de Haan Theorem**, which states that for a wide range of underlying distributions, the excess distribution $F_u$ converges to a GPD as the threshold $u$ is raised.
+
+### 2. Parameter Selection and Estimation
+The GPD is defined by two primary parameters: the **shape parameter ($\xi$)** and the **scale parameter ($\beta$)**.
+
+*   **Estimation Method:** The most common approach for parameter selection is **Maximum Likelihood Estimation (MLE)**. The log-likelihood is calculated by summing the log of the GPD densities for all excess losses $Y_j$.
+*   **Constraints:** During estimation, the model must satisfy the constraints that $\beta > 0$ and $1 + \xi Y_j / \beta > 0$ for all observations.
+*   **Alternative Methods:** While MLE is standard, **Probability-Weighted Moments (PWM)** is an alternative method sometimes used for fitting.
+*   **Role of $\xi$:** The shape parameter $\xi$ is critical as it defines the "tail index" ($\alpha = 1/\xi$). A positive $\xi$ indicates a heavy-tailed distribution (Pareto), while $\xi = 0$ corresponds to an exponential distribution.
+
+### 3. Diagnostics and Fit (Mean Excess and Q-Q Plots)
+The sources emphasize several graphical tools to ensure the model fits the data appropriately:
+
+*   **Sample Mean Excess Plot:** This is the primary diagnostic for **threshold selection**. The plot shows the average excess over varying thresholds. If the data support a GPD model, the plot should appear **increasingly linear** above the chosen threshold $u$. An upward trend suggests a positive shape parameter (heavy tails), while a horizontal trend suggests an exponential distribution.
+*   **Empirical Tail Plot:** To check the fit of the severity, researchers plot **estimated tail probabilities** on logarithmic axes. The smooth GPD curve is superimposed over the empirical data points; a close correspondence between the curve and the points indicates a good model fit.
+*   **Q–Q Plots for Spacings:** While not used for the GPD "excess" values themselves, the sources use **Q–Q plots of inter-exceedance times** against an exponential distribution. This is a diagnostic for the temporal part of the POT model to verify if the exceedances occur according to a **homogeneous Poisson process**.
+*   **Robustness Checks:** A final check involves **varying the threshold**. If the model is fit correctly, the estimate for the shape parameter $\xi$ and risk measures like 99% VaR should remain relatively stable across a range of high thresholds.

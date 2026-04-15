@@ -1,0 +1,18 @@
+First robustness layer
+
+GARCH-filtered residual tail analysis
+fit GARCH or t-GARCH to daily returns,
+standardize residuals,
+test whether standardized residuals still show fat tails,
+compare model-implied horizon shocks with empirical historical shocks.
+
+
+
+
+
+Second robustness layer
+
+EVT / POT on filtered residuals
+use EVT on the standardized residuals,
+examine whether the far-left tail is heavier than normal/t assumptions imply,
+especially for 99% shocks.

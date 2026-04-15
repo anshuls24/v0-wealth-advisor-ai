@@ -186,7 +186,7 @@ def _fit_t_garch_log_returns(
         )
 
     endog = y * scale
-    kw: dict[str, Any] = dict(vol="Garch", p=p, q=q, dist="t")
+    kw: dict[str, Any] = dict(vol="Garch", p=p, o=1,q=q, power=1.0, dist="t")
     if mean == "Zero":
         am = arch_model(endog, mean="Zero", **kw)
     else:
@@ -196,10 +196,10 @@ def _fit_t_garch_log_returns(
     params = {str(k): float(v) for k, v in res.params.items()}
 
     # ``arch`` volatility is for ``endog`` = scale * log return.
-    sigma_scaled = pd.Series(res.conditional_volatility, copy=True)
+    sigma_scaled = pd.Series(res.conditional_volatility, copy=True, index=y.index)
     sigma_log = sigma_scaled / scale
 
-    std_resid = pd.Series(res.std_resid, copy=True)
+    std_resid = pd.Series(res.std_resid, copy=True, index=y.index)
     std_resid.name = "std_resid"
 
     return TGarchFitResult(
@@ -247,6 +247,36 @@ def fit_t_garch_on_daily_recent(
     r = compute_log_returns(daily_recent, price_col=price_col)
     return _fit_t_garch_log_returns(
         r, p=p, q=q, mean=mean, scale=scale, update_freq=update_freq, disp=disp
+    )
+
+
+def fit_t_garch_on_daily(
+    daily: pd.DataFrame,
+    p: int = 1,
+    q: int = 1,
+    *,
+    mean: Literal["Constant", "Zero"] = "Constant",
+    scale: float = 100.0,
+    price_col: str = "Close",
+    update_freq: int = 0,
+    disp: str | None = "off",
+) -> TGarchFitResult:
+    """
+    Student-t GARCH on any daily price panel (e.g. full ``load_spx_daily()``).
+
+    Same implementation as :func:`fit_t_garch_on_daily_recent`; the name
+    signals use with the entire ``spx_50yr.csv`` history rather than only the
+    Part (b) ``daily_recent`` slice.
+    """
+    return fit_t_garch_on_daily_recent(
+        daily,
+        p=p,
+        q=q,
+        mean=mean,
+        scale=scale,
+        price_col=price_col,
+        update_freq=update_freq,
+        disp=disp,
     )
 
 
@@ -365,6 +395,27 @@ def compare_garch_orders(
         "ljung_box_sq_std_residuals": lb,
         "model_selection_note": note,
     }
+
+
+DEFAULT_MONTHLY_EARLY_CSV = Path(__file__).resolve().parent / "monthly_early.csv"
+
+
+def load_monthly_early_csv(csv_path: str | Path | None = None) -> pd.DataFrame:
+    """
+    Load ``monthly_early.csv`` (exported month-end early-era panel).
+
+    Same logical content as the ``monthly_early`` frame from
+    :func:`build_part_b_split` when both are built from the same daily history.
+    """
+    path = Path(csv_path) if csv_path is not None else DEFAULT_MONTHLY_EARLY_CSV
+    df = pd.read_csv(path, index_col=0)
+    df["Date"] = pd.to_datetime(df["Date"])
+    for col in ("Open", "High", "Low", "Close", "Volume"):
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    if "granularity" not in df.columns:
+        df["granularity"] = "month_end"
+    return df.sort_values("Date").reset_index(drop=True)
 
 
 if __name__ == "__main__":

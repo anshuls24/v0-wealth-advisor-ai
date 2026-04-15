@@ -1,724 +1,166 @@
-# optionAI — Options Strategy Orchestrator
+# SPX case study: Parts (a)–(c)
 
-optionAI is a production-grade, profile‑aware Options Strategy Orchestrator. It fuses a RAG knowledge engine with Polygon.io MCP market tools and a smart profile system to deliver grounded, personalized options strategy guidance — fast.
+This repository implements a mixed-frequency equity case study on **S&P 500** history (`spx_50yr.csv`): **Part (a)** tail modeling on GARCH residuals, **Part (b)** 40 years of month-end data plus 10 years of dailies with **log-sum bridging** to synthetic daily paths, and **Part (c)** the same split but early data are **monthly averages**, with **mean-on-levels** bridging instead.
 
-It’s built for modern deployment (Railway), streams responses, logs every tool call, and gracefully falls back when real‑time market data is unavailable.
-
-— “Options Guru” meets “your Options best friend.”
-
-## ✨ Core Capabilities
-
-- **Profile‑Aware Brain**: Builds and persists a rich client profile (risk tolerance, experience, strategy bias, underlyings, IV comfort, horizon).
-- **RAG‑First Recommendations**: Always grounds strategy guidance in retrieved docs (Vectorize). MCP is used to validate/refine.
-- **Polygon MCP Integration**: On Railway, optionAI gains 50+ Polygon tools (snapshots, news, aggs) via MCP with timeouts and logging.
-- **News → Strategy Flow**: Pull news, contextualize with profile, query RAG, synthesize — all in one streamed reply.
-- **Resilient Orchestration**: If MCP is down, the agent immediately pivots to RAG‑only education without stalling.
-- **First‑class Observability**: Detailed step logs of tool calls, args, results, and the active profile context.
-
-## 🧠 Orchestration (RAG‑First) — Flowchart
-
-```mermaid
-flowchart TD
-  %% Intake & Profile
-  A[User Message] --> B{Has userId?}
-  B -- Yes --> C[Load Stored Profile]
-  B -- No  --> D[Create userId]
-  D --> C
-  C --> E[Merge Incoming Profile + Stored Profile]
-
-  %% RAG First
-  E --> F[Construct RAG Query\n(risk, experience, bias, horizon, ticker hint)]
-  F --> G[Vectorize Retrieval]
-  G --> H{Docs Found?}
-  H -- No --> H1[Return Educational Fallback\n(no docs)] --> Z
-  H -- Yes --> I[Compose Context\n(Documents + Profile)]
-
-  %% MCP Optional
-  I --> J{MCP Available?}
-  J -- No --> K[RAG‑Only Synthesis]
-  J -- Yes --> L[Infer Ticker (if missing)]
-  L --> M[Call MCP Tools\n(snapshot, news, aggs)]
-  M --> N{Success?}
-  N -- No --> K
-  N -- Yes --> O[Refine Strategy Params\n(expiry, strikes, filters)]
-  O --> P[Synthesize Final Answer]
-
-  %% Streaming & Persist
-  K --> P
-  P --> Q[Stream Tokens to UI]
-  Q --> R[Persist Merged Profile]
-  R --> Z[End]
-
-  %% Timeouts & Guards
-  J -. MCP 5s Timeout .-> K
-  M -. Missing Args Guard .-> L
-```
-
-## 🏗️ Architecture
-
-- **Chat Advisor**: Conversational layer that collects profile signals and orchestrates tools.
-- **Options Guru (RAG)**: Vectorize retrieval fed with a profile‑enhanced query; returns concise, sourceable guidance.
-- **“Your Options Best Friend” (MCP)**: Polygon MCP tools exposed to the AI as native tools (news, snapshots, aggs, etc.).
-- **Profile Store**: In‑memory merge/persist per `userId` (ready to swap for Redis/Postgres).
-- **Observability**: `onStepFinish` logs tool calls, args, results, and active profile facets.
-
-## 🔧 Features (High‑Signal)
-
-- RAG‑first enforcement (prompt + tool order)
-- Dynamic profile merging/persistence across requests
-- MCP connection timeout + graceful fallback
-- Tool wrappers to repair missing args (e.g., infer ticker) and safe defaults
-- Robust logging guards (no more substring on undefined)
-- UI tuned for options: “Options Guru”, “Options best friend”, hidden generic tools tab
-
-## 🚀 Quick Start
-
-Prereqs:
-- Node 18+
-- pnpm 8+
-- OPENAI_API_KEY
-- (Railway prod) POLYGON_API_KEY, VECTORIZE credentials
-
-Install & run:
-```bash
-pnpm install
-pnpm dev
-```
-
-Environment (example):
-```bash
-OPENAI_API_KEY=sk-...
-# Railway / production
-POLYGON_API_KEY=...
-VECTORIZE_PIPELINE_ACCESS_TOKEN=...
-VECTORIZE_ORGANIZATION_ID=...
-VECTORIZE_PIPELINE_ID=...
-NODE_ENV=production
-```
-
-## 🖥️ Tabs & UX
-
-- **Chat Advisor** — profile builder + recommendations
-- **Market News** — curated news and context
-- **Options Guru** — direct RAG search with strict doc‑only rules
-- Header button: **Options best friend** — MCP landing (Railway recommended)
-
-## 🗂️ Endpoints (Highlights)
-
-- `POST /api/conversation` — main orchestrator; merges profile, RAG‑first, MCP optional.
-- `POST /api/rag-chat` — strict document‑only Q&A for strategy education.
-- `POST /api/market-news` — market news assistant.
-- `GET  /api/diagnostic` — checks keys + MCP connectivity (prod only).
-
-## 🧩 Profile System
-
-- Schema extends options‑specific fields: experience level, strategy preference, underlyings, IV comfort, horizon, risk structure, learning style.
-- Server merges incoming profile with stored profile per `userId` and persists updates during each turn.
-- Automatic completion milestones (75% / 100%) trigger summary + recommendation modes.
-
-## 🛡️ Reliability & Guardrails
-
-- 5s MCP connect timeout with log‑first fallback to RAG.
-- Tool wrappers infer ticker / add defaults to prevent undefined args.
-- Defensive logging (no crashes on undefined substring/stringify).
-- Clear “MCP unavailable” system mode with RAG‑only behavior.
-
-## 📦 Deploy
-
-### Railway (Recommended)
-Best experience for MCP (Python/uvx) + Node. Auto‑detects `railway.toml`; no Docker required.
-
-Steps:
-1) Push to GitHub → create Railway project from repo
-2) Set env vars (OPENAI, POLYGON, VECTORIZE*)
-3) Ensure Nixpacks builder is selected; deploy
-
-### Vercel
-Great for the UI and RAG; MCP subprocess is not supported. Use Railway for full MCP.
-
-## 🧭 Verifying Orchestration
-
-- Ask: “I’m moderate risk; I prefer credit spreads.”
-- Then: “news on NVDA”
-- Logs should show: profile merged → RAG query with profile facets → optional MCP list_ticker_news with non‑undefined args → streamed synthesis.
-
-## 🗺️ Roadmap
-
-- Redis/Postgres profile store
-- Vectorize: hybrid + rerank, per‑user corpora
-- Options screeners and backtesting helpers
-- Auth + multi‑tenant orgs
-
-## 🧰 Tech Stack
-
-Next.js 15 • TypeScript • Vercel AI SDK • OpenAI • Polygon MCP • Vectorize • Tailwind • shadcn/ui
+The notebooks **`Part(a).ipynb`**, **`Part(b).ipynb`**, and **`Part(c).ipynb`** orchestrate analysis. The heaviest methodology for (b) and (c) lives in **`partb_sim.py`** (PARTB_2) and **`partc_sim.py`** (PARTC_2).
 
 ---
 
-Built with care and an unreasonable amount of instrumentation. This repo demonstrates a pragmatic, production‑minded approach to AI tool orchestration for options trading.
+## Data and shared split
 
-🚀 **Getting Started**
-
-## Prerequisites
-
-- Node.js 18.17 or later
-- pnpm 8.0 or later
-- OpenAI API Key with GPT-4o access
-
-## Quick Start
-
-Clone and install:
-```bash
-git clone https://github.com/anshuls24/v0-wealth-advisor-ai.git
-cd v0-wealth-advisor-ai
-pnpm install
-```
-
-Configure environment:
-```bash
-cp .env.example .env.local
-# Add your OpenAI API key to .env.local
-```
-
-Start development server:
-```bash
-pnpm dev
-```
-
-Open browser: Navigate to http://localhost:3000
-
-## First Steps
-
-1. **Start Chatting**: Begin a conversation with the STOCK-AI advisor
-2. **Build Your Profile**: Answer questions about your financial goals, risk tolerance, and situation
-3. **Get Recommendations**: Receive personalized investment advice based on your profile
-4. **Explore Market News**: Check real-time market updates and analysis
-5. **Use Financial Tools**: Access calculators and chart generators
-
-💻 **Usage Examples**
-
-## Profile Collection
-
-**User**: "I want to invest for retirement"
-**AI**: "Great! Let's start building your financial profile. What's your primary investment goal for retirement?"
-
-**User**: "I have moderate risk tolerance and about $50,000 to invest"
-**AI**: "Perfect! I've noted your moderate risk tolerance and $50,000 investment amount. What's your time horizon for this investment?"
-
-## Market Analysis
-
-**User**: "What's happening with tech stocks today?"
-**AI**: "Let me search for the latest tech stock information..." 
-*[Searches web and provides real-time data with sources]*
-
-## Financial Planning
-
-**User**: "Help me plan for a house down payment"
-**AI**: "I'll help you create a savings plan. What's your target down payment amount and timeline?"
-
-🛠️ **Tech Stack**
-
-- **Framework**: Next.js 15 with App Router
-- **Language**: TypeScript (strict mode)
-- **AI**: Vercel AI SDK + OpenAI GPT-4o
-- **UI**: shadcn/ui components + Tailwind CSS
-- **Storage**: In-memory state (development) / Database integration ready
-- **Web Search**: AI SDK web search tools with source attribution
-- **State Management**: React hooks with in-memory state persistence
-- **Code Quality**: ESLint, Prettier, TypeScript strict mode
-
-📦 **API Endpoints**
-
-## POST /api/conversation
-Main chat endpoint for the STOCK-AI advisor.
-
-**Request:**
-```json
-{
-  "messages": [
-    {
-      "role": "user",
-      "content": "I want to start investing"
-    }
-  ],
-  "userId": "user_123"
-}
-```
-
-**Response:**
-```json
-{
-  "response": "I'd be happy to help you start investing! Let's begin by understanding your financial goals...",
-  "sources": [],
-  "mode": "chat"
-}
-```
-
-## POST /api/rag-chat
-RAG (Retrieval-Augmented Generation) endpoint for document-based Q&A.
-
-**Request:**
-```json
-{
-  "messages": [
-    {
-      "role": "user",
-      "content": "What is financial planning?"
-    }
-  ]
-}
-```
-
-**Response:**
-```json
-{
-  "response": "Based on the retrieved documents, financial planning is the process of creating a comprehensive strategy for managing your finances to achieve your life goals...",
-  "sources": [
-    {
-      "id": "doc-1",
-      "title": "Introduction to Financial Planning",
-      "url": "https://example.com/financial-planning-guide",
-      "score": 0.95
-    }
-  ],
-  "mode": "rag"
-}
-```
-
-## POST /api/market-news
-Market news and analysis endpoint with web search.
-
-**Request:**
-```json
-{
-  "messages": [
-    {
-      "role": "user", 
-      "content": "What's the latest on Apple stock?"
-    }
-  ]
-}
-```
-
-**Response:**
-```json
-{
-  "response": "Based on the latest market data, Apple stock is currently...",
-  "sources": [
-    {
-      "url": "https://finance.yahoo.com/quote/AAPL",
-      "title": "Apple Inc. (AAPL) Stock Price"
-    }
-  ],
-  "mode": "market_analysis"
-}
-```
-
-🚢 **Deployment**
-
-## Railway Deployment (Recommended) ⭐
-
-**Best for**: Full Stock MCP Server functionality with Polygon.io integration!
-
-See detailed guide: [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)
-
-**Quick Start:**
-1. Push to GitHub: `git push origin main`
-2. Go to [railway.app](https://railway.app)
-3. Click "New Project" → "Deploy from GitHub repo"
-4. Select your repository
-5. Add environment variables:
-   - `NODE_ENV=production`
-   - `OPENAI_API_KEY`: Your OpenAI API key
-   - `POLYGON_API_KEY`: Your Polygon.io API key
-   - `VECTORIZE_PIPELINE_ACCESS_TOKEN`: mock-token (or your real token)
-   - `VECTORIZE_ORGANIZATION_ID`: mock-org (or your real org ID)
-   - `VECTORIZE_PIPELINE_ID`: mock-pipeline (or your real pipeline ID)
-6. Railway auto-deploys! 🚀
-
-**Why Railway?**
-- ✅ Supports STDIO-based MCP servers (Polygon.io integration works!)
-- ✅ Python/uvx support built-in via `railway.toml`
-- ✅ Excellent developer experience
-- ✅ No complex Docker configuration needed
-- ✅ Auto-deploy from GitHub
-- ✅ ~$10-15/month
+- **Source:** `spx_50yr.csv` — daily OHLCV, `Date` parsed as in `partb.load_spx_daily`.
+- **Calendar cut:** `first_date` in sample → `daily_start = first_date + 40 years` (`MONTHLY_HISTORY_YEARS = 40`).
+- **Part (b) early segment:** one row per calendar month at the **last trading day**, **month-end Close** (`partb.build_part_b_split`).
+- **Part (c) early segment:** same month keys and dates, but OHLC are **monthly means** (volume summed) (`partc.build_part_c_split`).
+- **Last 10 years:** full daily history, used to **fit t-GARCH** and to define **true trading calendars** inside each month for simulation.
 
 ---
 
-## Vercel Deployment (For Main App Only)
+## What each notebook uses
 
-**Best for**: Fast deployment without Stock MCP Server
+### `Part(a).ipynb`
 
-Push to GitHub:
-```bash
-git push origin main
-```
+- **`partb`:** `load_spx_daily`, `compute_log_returns`, `fit_t_garch_on_daily` — fit **Student-t GARCH** on daily log returns; standardized residuals drive EVT.
+- **`parta_evt`:** POT / mean-excess, GPD fitting, loss transforms, hybrid quantiles, `evt_summary_pooled_simple_returns` where pooled monthly simple returns are analyzed.
+- **`spx_rolling_buyhold`:** rolling calendar-month simple returns, tail percentiles, `analyze_spx_rolling`.
+- **`spx_drawdown_severity`:** rolling-peak fractional drawdowns on observed daily `Close` (`analyze_spx_drawdown_percentiles`).
 
-Import to Vercel:
-1. Go to vercel.com
-2. Import your repository
-3. Add environment variables:
-   - `OPENAI_API_KEY`: Your OpenAI API key
+Part (a) does **not** call `partb_sim` / `partc_sim`; it establishes the **GARCH + EVT-on-residuals** recipe and baseline tail metrics on fully observed daily data.
 
-⚠️ **Important Note about Stock MCP Server on Vercel:**
-The Stock MCP Server (Polygon.io integration) requires spawning a Python subprocess (`uvx`), which is **not supported** on Vercel's serverless platform. The button will appear but show a "tools temporarily unavailable" error when clicked. For full MCP functionality, deploy to Railway instead.
+### `Part(b).ipynb`
 
-## Environment Variables
+- **`partb`:** `build_part_b_dataset`, `build_part_b_split`, `split_summary`, `load_spx_daily`, `load_monthly_early_csv`, GARCH fit on the daily tail, exports like `TGarchFitResult`.
+- **`partb_sim`:** `partb2_month_table`, `bridge_interval_from_monthly_early`, `simulate_partb2_path`, `partb2_monte_carlo`, pooled calendar-month return routines, plotting helpers (`plot_partb2_month_mc_paths`, `plot_partb_year_span_validation`, `simulate_partb2_year_span_batch`, etc.).
+- **`parta_evt`:** EVT on **pooled** simulated simple returns where the notebook compares tail behavior to Part (a).
+- **`spx_drawdown_severity`:** `analyze_partb2_simulated_drawdown_percentiles` — same drawdown machinery as on real data, applied to bridged paths.
 
-```bash
-# Required
-OPENAI_API_KEY=sk-...your-key-here
+### `Part(c).ipynb`
 
-# Optional (for future Supabase integration)
-SUPABASE_URL=your-supabase-url
-SUPABASE_ANON_KEY=your-supabase-anon-key
-```
+- **`partc`:** `build_part_c_dataset`, `build_part_c_split`, `split_summary`, `load_monthly_avg_csv`.
+- **`partb`:** `load_spx_daily`, t-GARCH fit on `daily_recent` (same calibration idea as Part (b)).
+- **`partc_sim`:** `partc2_month_table`, `bridge_interval_from_monthly_avg_early`, `simulate_partc2_path`, `partc2_monte_carlo`, `simulate_partc2_month_paths`, plotting (`plot_partc2_month_mc_paths`, year-span validation helpers mirroring Part (b)).
+- **`parta_evt`:** pooled EVT on Part (c) simulated returns where applicable.
+- **`spx_drawdown_severity`:** `analyze_partc2_simulated_drawdown_percentiles`.
 
-📊 **Profile Management System**
-
-## Profile Schema
-
-```typescript
-interface ClientProfile {
-  goals: {
-    short_term: string | null;
-    medium_term: string | null;
-    long_term: string | null;
-  };
-  risk: {
-    tolerance: string | null;
-    history: string | null;
-  };
-  financials: {
-    income: string | null;
-    assets: string | null;
-    expenses: string | null;
-  };
-  time_horizon: string | null;
-  preferences: string[];
-  expectations: string[];
-}
-```
-
-## Completion Tracking
-
-- **Flexible Requirements**: Only 2 of 3 goals needed, 1 preference, 1 expectation
-- **Real-time Updates**: Profile completion percentage calculated dynamically
-- **Summary Generation**: Automatic profile summaries at 75% and 100% completion
-- **User Verification**: Editable summaries with confirmation workflow
-
-🔍 **RAG System (Retrieval-Augmented Generation)**
-
-## Overview
-
-The RAG system provides document-based Q&A capabilities, allowing users to query financial documents and receive accurate, source-cited responses. This system is completely isolated from the main chat advisor to ensure focused document retrieval without profile-building interference.
-
-## Key Features
-
-- **Document Retrieval**: Semantic search through financial documents with relevance scoring
-- **Source Citations**: Every response includes document sources with titles, URLs, and relevance scores
-- **Streaming Responses**: Real-time response generation with manual streaming parser
-- **Complete Isolation**: Separate from advisor chat to prevent cross-contamination
-- **Mock Implementation**: Currently uses mock financial documents for demonstration
-
-## Behavior Update (Sep 2025)
-
-- Simplified, conversational system prompt for RAG to reduce brittleness and generic replies
-- Relaxed greeting filter: only exact greetings (e.g., "hi", "hello") return the canned onboarding line; short queries like "IRA" now pass through to retrieval
-- Lower temperature to 0.1 for focused, factual answers; capped response length (`maxTokens: 500`)
-- Sources are returned via the `X-Document-Sources` response header and displayed in the UI
-- Tip: If you get the greeting line, try a more specific query or avoid pure greeting words
-
-Example queries that work well now:
-- "IRA"
-- "Roth IRA vs Traditional IRA"
-- "Portfolio diversification basics"
-- "What is wealth management?"
-
-## Architecture
-
-```typescript
-// Document Interface
-interface VectorizeDocument {
-  id: string;
-  content: string;
-  metadata?: {
-    title?: string;
-    source?: string;
-    url?: string;
-  };
-  score?: number;
-}
-
-// RAG Response Format
-interface RAGResponse {
-  documents: VectorizeDocument[];
-  query: string;
-  total_results: number;
-}
-```
-
-## Mock Document Collection
-
-The system includes comprehensive financial documents covering:
-
-- **Financial Planning**: Comprehensive strategy creation and goal setting
-- **Investment Diversification**: Risk management and portfolio construction
-- **Risk Tolerance**: Understanding and assessing investment risk preferences
-- **Retirement Planning**: 401(k), IRA, and retirement income strategies
-- **Emergency Funds**: Building financial security and emergency preparedness
-
-## Usage Examples
-
-**Query**: "What is wealth management?"
-**Response**: Combines information from multiple documents about financial planning, investment diversification, and risk management, with full source citations.
-
-**Query**: "How should I diversify my portfolio?"
-**Response**: Retrieves and synthesizes information from investment diversification documents with specific strategies and recommendations.
-
-## Technical Implementation
-
-- **Endpoint**: `/api/rag-chat` - Dedicated RAG processing endpoint
-- **Client**: `components/rag-chat.tsx` - Isolated chat interface with source display
-- **Service**: `lib/vectorize.ts` - Mock document retrieval with keyword matching
-- **Streaming**: Custom streaming parser for real-time response display
-- **Debugging**: Comprehensive logging for document retrieval and AI responses
-
-## Future Enhancements
-
-- **Real Vectorize.io Integration**: Replace mock implementation with actual vector database
-- **Document Upload**: Allow users to upload their own financial documents
-- **Advanced Search**: Implement semantic similarity search with embeddings
-- **Document Management**: Add, edit, and organize document collections
-
-📈 **Stock Market Advisor (Polygon MCP Integration)**
-
-## Overview
-
-The Stock Market Advisor is a dedicated AI agent that provides real-time stock market analysis using Polygon.io's official MCP (Model Context Protocol) server. This integration gives the AI autonomous access to comprehensive financial market data for intelligent stock analysis and trading recommendations.
-
-## Key Features
-
-- **Real-time Stock Prices**: Current market data with live quotes and volume
-- **Technical Analysis**: OHLC charts, moving averages, support/resistance levels
-- **Company Fundamentals**: Revenue, earnings, P/E ratios, financial statements
-- **Market News**: Latest news articles and company-specific updates
-- **Historical Data**: Price history for trend analysis and backtesting
-- **Market Status**: Real-time market open/closed status and trading hours
-- **Multi-Asset Support**: Stocks, options, forex, and crypto (based on API tier)
-
-## Available Tools (Polygon.io MCP)
-
-The agent has autonomous access to these market data tools:
-
-| Tool | Description | Example Query |
-|------|-------------|---------------|
-| `get_aggs` | OHLC bars and aggregates | "Show AAPL's price chart this week" |
-| `get_snapshot_ticker` | Current market snapshot | "What's TSLA trading at?" |
-| `get_last_trade` | Most recent trade | "Last trade for NVDA" |
-| `get_previous_close` | Previous day close | "AAPL's close yesterday" |
-| `list_ticker_news` | Company news articles | "Latest Tesla news" |
-| `list_stock_financials` | Financial statements | "AAPL's revenue and EPS" |
-| `get_ticker_details` | Company information | "Tell me about Nvidia" |
-| `get_market_status` | Market hours | "Is the market open?" |
-
-## Architecture
-
-```
-User Query ("What's AAPL trading at?")
-    ↓
-Stock Advisor Frontend (/stock-advisor)
-    ↓
-API Route (/api/stock-advisor)
-    ↓
-Polygon MCP Client (STDIO Transport)
-    ↓
-Spawns Python MCP Server (uvx)
-    ↓
-Polygon.io REST API
-    ↓
-Real-time Market Data
-    ↓
-AI Agent Analyzes & Responds
-```
-
-## Setup
-
-### Prerequisites
-
-1. **Polygon.io API Key**: Sign up at [polygon.io](https://polygon.io/dashboard/signup)
-   - Free tier: 5 API calls/minute
-   - Paid plans: Unlimited calls with extended historical data
-
-2. **Python/uvx**: Install Astral uv for running the MCP server
-   ```bash
-   # macOS/Linux
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   
-   # Windows
-   powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
-   ```
-
-### Configuration
-
-Add to `.env.local`:
-```bash
-POLYGON_API_KEY=your_polygon_api_key_here
-```
-
-### Install Dependencies
-
-```bash
-npm install
-# Installs @modelcontextprotocol/sdk and other required packages
-```
-
-## Usage Examples
-
-**Basic Queries:**
-- "What's Apple stock trading at?"
-- "Show me Tesla's price action today"
-- "Is the market open right now?"
-
-**Technical Analysis:**
-- "Analyze NVDA's recent trend"
-- "What's the support level for AMD?"
-- "Show me AAPL's 50-day moving average"
-
-**Fundamental Research:**
-- "What are Tesla's latest financials?"
-- "Tell me about Microsoft's revenue growth"
-- "What sector is Nvidia in?"
-
-**News & Sentiment:**
-- "Any news on Apple?"
-- "Why is Tesla stock moving today?"
-- "What are analysts saying about AMD?"
-
-## Access
-
-Navigate to: **http://localhost:3000/stock-advisor**
-
-## Documentation
-
-See [POLYGON_MCP_SETUP.md](./POLYGON_MCP_SETUP.md) for:
-- Detailed setup instructions
-- Troubleshooting guide
-- API key configuration
-- Performance optimization
-- Advanced features
-
-## Pricing
-
-**Polygon.io API Tiers:**
-- **Free**: 5 calls/min, limited historical data
-- **Starter ($29/mo)**: Unlimited calls, 1-year history
-- **Developer ($99/mo)**: Unlimited calls, 2-year history, more assets
-
-See: https://polygon.io/pricing
-
-🗺️ **Development Roadmap**
-
-## Recently Completed ✅
-
-- **Stock Market Advisor with Polygon MCP** - Real-time market data integration with autonomous AI tools
-- **RAG System Implementation** - Document retrieval with source citations and streaming responses
-- **Profile Management System** - Dynamic collection with flexible requirements
-- **Market News Integration** - Real-time web search with source attribution
-- **LocalStorage Implementation** - Client-side profile persistence
-- **Debug Tools** - Comprehensive debugging utilities
-- **UI/UX Improvements** - Modern, responsive interface
-- **Quick Reply Buttons** - Interactive button-based responses for guided conversations
-
-## Next Priority Items
-
-- **Custom Trading Tools** - Backtesting, portfolio analysis, risk assessment
-- **Real Vectorize.io Integration** - Replace mock RAG with actual vector database
-- **Supabase Integration** - Database storage for production
-- **Profile Analytics** - Advanced completion tracking and insights
-- **Options & Crypto Analysis** - Extended market coverage beyond stocks
-- **User Authentication** - Secure user accounts and data protection
-
-## Coming Soon
-
-- **Document Upload** - User document upload for personalized RAG
-- **Portfolio Tracking** - Investment performance monitoring
-- **Goal Progress** - Visual progress tracking for financial goals
-- **Advanced Analytics** - Comprehensive financial health scoring
-- **Mobile App** - React Native companion app
-
-⚠️ **Known Issues & Limitations**
-
-- **Profile Reset Bug** - Occasionally profile data resets (under investigation)
-- **LocalStorage Limits** - Browser storage limitations for large profiles
-- **Web Search Rate Limits** - API rate limiting for market data
-- **Profile Completion UI** - Removed due to responsiveness issues (will be redesigned)
-
-📋 **Development Commands**
-
-```bash
-pnpm dev          # Start development server
-pnpm build        # Build for production
-pnpm start        # Start production server
-pnpm lint         # Lint code with ESLint
-pnpm lint:fix     # Auto-fix ESLint issues
-pnpm format       # Format code with Prettier
-pnpm format:check # Check formatting without changes
-```
-
-🧪 **Testing**
-
-The project includes comprehensive debugging and testing utilities:
-
-- **Profile State Debugging** - Real-time profile state inspection
-- **LocalStorage Testing** - Storage functionality verification
-- **API Endpoint Testing** - Chat and market news endpoint validation
-- **UI Component Testing** - Interactive component verification
-
-Run development server with debugging:
-```bash
-pnpm dev
-```
-
-📐 **Code Standards**
-
-- **Functions**: Maximum 50 lines
-- **Files**: Maximum 500 lines
-- **TypeScript**: Strict mode enabled
-- **Architecture**: Component-based with clear separation of concerns
-- **Testing**: Comprehensive debugging utilities
-- **Documentation**: Inline comments and README updates
-
-🔄 **Development Workflow**
-
-The project maintains detailed documentation:
-
-- **README.md**: This comprehensive project overview
-- **API Documentation**: Endpoint specifications and usage examples
-- **Profile Schema**: User data structure and validation rules
-- **Debug Tools**: Built-in debugging utilities for development
-
-🤝 **Contributing**
-
-1. Fork the repository
-2. Create a feature branch
-3. Follow TypeScript strict mode
-4. Ensure all debugging tools work
-5. Submit pull request
-
-📚 **Documentation**
-
-- **API Documentation** - Detailed endpoint specifications
-- **Profile Management** - User data collection and storage
-- **Market Integration** - Web search and source attribution
-- **Deployment Guide** - Production setup instructions
+Optional **supervised imputation** of month-end from monthly averages (using only the daily tail) is in **`ml_c.py`** if referenced from the notebook; it does not replace the simulation bridge in `partc_sim`.
 
 ---
 
-**Live Demo**: [https://vercel.com/anshuls24-8311s-projects/v0-wealth-advisor-ai](https://vercel.com/anshuls24-8311s-projects/v0-wealth-advisor-ai)
+## `partb_sim.py` — PARTB_2 (log bridge to month-end)
 
-**Built with**: [v0.app](https://v0.app/chat/projects/jtJfYnINkf1)
+### Role
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/anshuls24-8311s-projects/v0-wealth-advisor-ai)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/projects/jtJfYnINkf1)
+For the **month-end-only** early sample, the code **constructs plausible daily paths** between consecutive observed month-end closes using a **t-GARCH** fit from the last 10 years of dailies. Drawdowns, pooled returns, and tail statistics are computed **after** full paths exist.
+
+### Month table (`partb2_month_table`)
+
+- One row per **interval** between consecutive rows of `monthly_early`.
+- Each row has `date_start`, `date_end`, `close_start`, `close_end`, trading-day count `n_days`, and (from `daily_full`) the first trading day of the target month (`date_first_trading`, `close_first_trading`) for optional anchoring.
+- **Chaining:** for month \(k>0\), `close_start` equals the previous row’s `close_end` (continuous month-end levels).
+
+### GARCH simulation (`simulate_tgarch_segment_log_units`)
+
+- Uses `TGarchFitResult` from `partb` (including **`scale`**: `arch` outputs are divided by `scale` to get **log-return units**).
+- **GARCH(1,1):** manual NumPy recursion + `np.random.Generator` for reproducibility.
+- **Other orders:** delegates to `arch` simulation (parametric innovations only).
+- **Innovations:** `parametric` — iid standardized Student-t with df `nu` from the fit. `bootstrap` — resample in-sample **standardized residuals** (only implemented for GARCH(1,1)).
+
+### Log-sum bridge (`bridge_month_returns`)
+
+For one month:
+
+1. Draw `n_days` **tentative** log returns `r_tilde` and conditional volatilities `sigma_tilde` from the GARCH segment.
+2. Observed month-end log return is \(R_{\text{month}} = \log(\text{close_end}/\text{close_start})\).
+3. **Gap:** \(\delta = R_{\text{month}} - \sum \tilde r_t\).
+4. **Allocate** \(\delta\) across days with weights \(w_t \propto \sigma_tilde_t\) (uniform if invalid), yielding **bridged** returns `r_star` with \(\sum r^\star_t = R_{\text{month}}\).
+5. Rebuild prices: `prices_from_log_returns(close_start, r_star)`.
+
+So the path **hits both month-end anchors**; interior dynamics are GARCH-shaped but **sum-corrected** to match data.
+
+### Path and Monte Carlo (`simulate_partb2_path`, `partb2_monte_carlo`)
+
+- Loops over the month table; each segment starts at the **previous segment’s terminal price** (after the first month, consistent with month-end chaining).
+- Optional **`use_first_trading_day_close_anchor`:** first day’s return is adjusted so the level after the first trading day matches `daily_full` (default **False** — only two month-end anchors, matching “low-frequency panel” assumptions).
+
+`partb2_monte_carlo` repeats for `n_paths` independent RNG streams (`numpy.random.SeedSequence`), collects **max drawdown** (and horizon windows via `partb2_path_drawdown_horizons`), and summarizes percentiles.
+
+### Other exports
+
+- **`bridge_interval_from_monthly_early`:** metadata for a single target month (for diagnostics / plots).
+- **Pooled calendar-month simple returns** across paths share the same seeding convention as `partb2_monte_carlo` for reproducibility.
+- Plot helpers visualize multi-path fan charts and year-span validation batches.
+
+---
+
+## `partc_sim.py` — PARTC_2 (mean-matched intramonth levels)
+
+### Role
+
+Early data are **monthly average closes**, not month-ends. The code still simulates **GARCH daily log returns** on each month’s **true trading calendar**, but instead of forcing the **sum of log returns** to match a month-end move, it **rescales intramonth price levels** so their **arithmetic mean** equals the observed monthly average **`avg_end`**.
+
+### Month table (`partc2_month_table`)
+
+- Analogous to Part (b): intervals between consecutive low-frequency rows, but anchors are **`avg_start`** / **`avg_end`** (means), with `R_month_log_from_avgs = log(avg_end/avg_start)` for reference only — the bridge does **not** impose this sum directly on GARCH draws.
+
+### Mean scaling (`_mean_scale_segment`)
+
+For one month with \(n\) trading days:
+
+1. Fix **pre-month level** \(P_0\) (previous month’s simulated terminal close, or the first row’s `avg_start`).
+2. Draw GARCH log returns \(\tilde r_{1:n}\), build raw prices \(P_j\) from \(P_0\).
+3. Let \(m = \text{mean}(P_1,\ldots,P_n)\). Target monthly average \(A = \texttt{avg_end}\).
+4. Scale factor \(c = A/m\). Set \(P^\star_0 = P_0\), \(P^\star_i = c \cdot P_i\) for \(i \ge 1\). Then \(\text{mean}(P^\star_{1:n}) = A\).
+5. Implied bridged log returns: \(r^\star_j = \log(P^\star_j/P^\star_{j-1})\). GARCH **ratios** are preserved from day 2 onward; day 1 absorbs the level rescaling.
+
+Paths **chain** across months: each segment’s \(P_0\) is the previous segment’s last close; the implementation checks continuity at joins.
+
+### Path and Monte Carlo (`simulate_partc2_path`, `partc2_monte_carlo`)
+
+- Same outer loop structure as Part (b), swapping **`_mean_scale_segment`** for **`bridge_month_returns`**.
+- **`simulate_partc2_month_paths`:** many paths for a **single** target calendar month (fan charts), anchored by `bridge_interval_from_monthly_avg_early`.
+
+### Shared code with `partb_sim`
+
+- **`simulate_tgarch_segment_log_units`**, **`prices_from_log_returns`**, **`max_drawdown_from_prices`**, **`partb2_path_drawdown_horizons`**, innovation typing — imported from `partb_sim` so drawdown horizon logic stays aligned.
+
+---
+
+## Dependency sketch
+
+| Package   | Typical use                          |
+|----------|---------------------------------------|
+| `pandas` | Panels, calendars                     |
+| `numpy`  | Simulation, bridges                   |
+| `matplotlib` | Plots in notebooks              |
+| `arch`   | t-GARCH fit (`partb`)                 |
+| `statsmodels` / `scipy` | `ml_c`, some EVT/stats |
+
+Install `arch` as needed (`pip install arch`).
+
+---
+
+## Core Python modules (quick index)
+
+| Module | Purpose |
+|--------|---------|
+| `partb.py` | Data construction Part (b), GARCH fit, shared loaders/constants |
+| `partc.py` | Data construction Part (c) (monthly averages + daily tail) |
+| `parta_evt.py` | EVT / GPD helpers for residuals and pooled returns |
+| `partb_sim.py` | PARTB_2: log bridge, Monte Carlo paths, drawdown sampling |
+| `partc_sim.py` | PARTC_2: mean bridge, Monte Carlo paths |
+| `spx_drawdown_severity.py` | Rolling-peak drawdowns; real vs Part (b)/(c) simulated |
+| `spx_rolling_buyhold.py` | Calendar-month rolling simple returns on observed data |
+| `spx_trading_day_buyhold.py` | Trading-day-window simple returns (Part (b) workflows) |
+| `ml_c.py` | Optional OLS / CV pipeline for \(r_m = \log(M_m/A_m)\) on daily tail |
+
+---
+
+## Reading order for the simulation logic
+
+1. Module docstrings at the top of **`partb_sim.py`** and **`partc_sim.py`**.
+2. **`partb2_month_table`** vs **`partc2_month_table`** (what is observed each month).
+3. **`bridge_month_returns`** (Part b) vs **`_mean_scale_segment`** (Part c).
+4. **`simulate_partb2_path`** / **`simulate_partc2_path`** (full early-sample paths).
+5. **`partb2_monte_carlo`** / **`partc2_monte_carlo`** (distribution of drawdowns).
+
+This matches the execution flow used in **`Part(b).ipynb`** and **`Part(c).ipynb`**.

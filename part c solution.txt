@@ -1,0 +1,92 @@
+QUESTION/ PROBLEM TO SOLVE:
+
+Now assume that, for the first 40 years, the data consists of monthly average values 
+rather than month-end values.
+Again, develop and implement an approach to estimate the same shocks (
+    again if multiple approaches at least one of them should be the 
+    construction/simulation of daily data), explain your assumptions and limitations, 
+    and compare the results with Parts A and B.
+
+
+
+SOLUTION TO BE APPLIED:
+
+1. Now assume that, for the first 40 years, the data consists of monthly average values 
+rather than month-end values. And for the last 10 years we have daily data. 
+
+Using (Average Data) monthly average values 
+rather than month-end values. Try to simulate month end data from that..... then apply 
+approaches below same as in part(b).
+
+Use the last 10 years, where you have daily data, to learn the relationship between:
+- get an insight on monthly repetitive patterns 
+-	monthly averages, 
+-	month-end levels,
+-	and month-end returns.
+Via a simple empirical distribution, or a regression on monthly-average returns
+
+
+Idea in the 10-year daily window
+On daily data you can relate the monthly return (r_m) to things like:
+
+realized monthly volatility
+skewness of daily returns within the month
+whether the month had a late rally vs late selloff
+Constraint for the early 40 years
+In the low-frequency era you don’t have those daily “shape” features. So the model you actually deploy should use only what exists for the whole sample:
+
+monthly averages
+calendar information (e.g. month-of-year effects)
+Proposed deployable regression
+They write a practical spec:
+
+[ r_m = \alpha + \beta_1 g_m^A + \beta_2 g_{m-1}^A + \beta_3 \mathrm{Vol}{m-1:m-3}^A + \gamma{\mathrm{month}(m)} + \varepsilon_m ]
+
+(g_m^A), (g_{m-1}^A): growth features built from monthly averages (current and lag).
+(\mathrm{Vol}_{m-1:m-3}^A): volatility proxy from average-based series over months (m{-}1) through (m{-}3).
+(\gamma_{\mathrm{month}(m)}): calendar-month effect (seasonal dummies or similar).
+(r_m): monthly return (they frame it as the thing you’re modeling—typically log return month-on-month if you then exponentiate).
+Mapping averages → month-end (or “end-of-month level”) idea
+They close with:
+
+[ \hat{E}_m = A_m \exp(\hat{r}_m) ]
+
+So you predict (\hat{r}_m) from the regression, then map to an estimated level (\hat{E}_m) using a base (A_m) (in your write-up that would be tied to how you define the monthly average (A_m) vs the month-end you want to infer).
+
+If you want, we can wire this into a partc_regression.py (fit on the 10y daily-built targets, features from monthly-average history only, then apply on the 40y monthly_avg_early panel from partc.py).
+
+
+2. If you have multiple approaches at least one of them should be 
+the construction/simulation of daily data. 
+(DAILY CONSTRUCTION ESTIMATION)
+
+REFER TO PARTB_1.png:
+PARTB_1.png — t-GARCH setup for simulating the early 40 years
+Take the last 10 years of daily closes.
+Compute daily returns.
+Fit a t-GARCH model on those daily returns.
+Use the fitted parameters to simulate missing daily paths for the earlier 40 years.
+It also defines simulated daily returns and volatilities (\tilde{r}{m,j}), (\tilde{\sigma}{m,j}) as coming from that t-GARCH calibrated on the 10-year daily sample.
+
+
+REFER TO PARTB_2.png:
+Observe month-end levels (M_m, M_{m+1}).
+Observed monthly log return: (R_m^{(M)} = \log(M_{m+1}/M_m)).
+Simulate (D_m) daily (\tilde{r}{m,j}) and (\tilde{\sigma}{m,j}) from the fitted t-GARCH.
+Simulated monthly total: (\tilde{R}m = \sum_j \tilde{r}{m,j}).
+Gap: (\Delta_m = R_m^{(M)} - \tilde{R}_m).
+Volatility weights: (w_{m,j} = \tilde{\sigma}{m,j} / \sum_k \tilde{\sigma}{m,k}).
+Corrected daily returns: (r_{m,j}^* = \tilde{r}{m,j} + w{m,j}\Delta_m).
+Reconstruct daily prices from (r_{m,j}^*)
+Repeat the above process multiple times to get average simulated paths + 
+an estimate of drawdowns for each horizon and percentiles
+
+
+2. Develop and implement a method to estimate the same 1-month, 3-month, and 6-month shocks under this data limitation. 
+(TAIL ESTIMATION)
+
+The following steps:
+- Construct month-end horizon returns and convert to losses
+- Choose Threshold
+- Fit a Generalized Pareto Distribution to losses above threshold (Extreme Value Theorem).
+- Use the fitted tail to estimate the desired adverse quantiles.

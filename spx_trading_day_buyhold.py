@@ -255,7 +255,42 @@ def analyze_trading_day_buyhold_percentiles(
             "log_vs_price_max_abs_diff": log_check,
         }
 
-        ax.hist(r, bins=60, color="steelblue", edgecolor="white", alpha=0.85)
+        # Match ``spx_rolling_buyhold.analyze_spx_rolling`` (bins=60). If we only
+        # ``set_xlim`` after ``hist`` on data with huge outliers, all 60 bins span
+        # min(r)…max(r) and the zoomed view shows one or two giant blocks — use
+        # ``range=(x_lo, x_hi)`` so bins are dense inside the visible window.
+        n_bins = 60
+        x_lo: float | None = None
+        x_hi: float | None = None
+        if xlim is not None:
+            x_lo, x_hi = float(xlim[0]), float(xlim[1])
+        elif xlim_percentiles is not None:
+            ql, qh = xlim_percentiles
+            lo, hi = np.percentile(r, [ql, qh])
+            span = float(hi - lo)
+            pad = max(0.02 * span, 1e-8)
+            x_lo, x_hi = float(lo - pad), float(hi + pad)
+        elif xlim_symmetric_percentiles is not None:
+            ql, qh = xlim_symmetric_percentiles
+            lo, hi = np.percentile(r, [ql, qh])
+            m = max(abs(float(lo)), abs(float(hi)))
+            if m == 0.0:
+                m = float(np.std(r) or 0.05)
+            pad = max(0.05 * m, 1e-8)
+            x_lo, x_hi = float(-m - pad), float(m + pad)
+
+        if x_lo is not None and x_hi is not None and x_hi > x_lo:
+            ax.hist(
+                r,
+                bins=n_bins,
+                range=(x_lo, x_hi),
+                color="steelblue",
+                edgecolor="white",
+                alpha=0.85,
+            )
+        else:
+            ax.hist(r, bins=n_bins, color="steelblue", edgecolor="white", alpha=0.85)
+
         ax.axvline(0, color="black", linewidth=0.8, linestyle="--", zorder=3)
         ymax = ax.get_ylim()[1]
 
@@ -293,22 +328,8 @@ def analyze_trading_day_buyhold_percentiles(
 
         ax.set_ylim(top=ymax * 1.14)
 
-        if xlim is not None:
-            ax.set_xlim(xlim[0], xlim[1])
-        elif xlim_percentiles is not None:
-            ql, qh = xlim_percentiles
-            lo, hi = np.percentile(r, [ql, qh])
-            span = float(hi - lo)
-            pad = max(0.02 * span, 1e-8)
-            ax.set_xlim(lo - pad, hi + pad)
-        elif xlim_symmetric_percentiles is not None:
-            ql, qh = xlim_symmetric_percentiles
-            lo, hi = np.percentile(r, [ql, qh])
-            m = max(abs(float(lo)), abs(float(hi)))
-            if m == 0.0:
-                m = float(np.std(r) or 0.05)
-            pad = max(0.05 * m, 1e-8)
-            ax.set_xlim(-m - pad, m + pad)
+        if x_lo is not None and x_hi is not None and x_hi > x_lo:
+            ax.set_xlim(x_lo, x_hi)
 
         src = resolved_src
         pre = f"{title_prefix} " if title_prefix else ""
@@ -412,6 +433,8 @@ def analyze_partb2_simulated_trading_buyhold(
     savefig_path: str | Path | None = None,
     burn: int = 500,
     innovations: str = "parametric",
+    price_col: str = "Close",
+    use_first_trading_day_close_anchor: bool = False,
     xlim: tuple[float, float] | None = None,
     xlim_percentiles: tuple[float, float] | None = None,
     xlim_symmetric_percentiles: tuple[float, float] | None = (1.0, 99.0),
@@ -419,6 +442,13 @@ def analyze_partb2_simulated_trading_buyhold(
     """
     Pool rolling simple returns across many Part (b) simulated paths, then run
     the same histogram / tail analysis as historical SPX.
+
+    Underlying paths use **consecutive month-end closes** from ``monthly_early``
+    (previous month last trading day → current month last trading day) per
+    ``partb_sim.partb2_month_table``; histograms and percentiles use pooled
+    returns **after** that bridged simulation. Optional
+    ``use_first_trading_day_close_anchor=True`` adds a pin to the first
+    intra-month ``daily_full`` close.
 
     ``garch`` should be a :class:`partb.TGarchFitResult`.
     Default ``xlim_symmetric_percentiles=(1, 99)`` zooms the x-axis near 0;
@@ -441,6 +471,8 @@ def analyze_partb2_simulated_trading_buyhold(
         seed=seed,
         burn=burn,
         innovations=kind,
+        price_col=price_col,
+        use_first_trading_day_close_anchor=use_first_trading_day_close_anchor,
     )
     return analyze_trading_day_buyhold_percentiles(
         trading_windows=trading_windows,
@@ -475,6 +507,8 @@ def analyze_partb2_simulated_calendar_month_buyhold(
     savefig_path: str | Path | None = None,
     burn: int = 500,
     innovations: str = "parametric",
+    price_col: str = "Close",
+    use_first_trading_day_close_anchor: bool = False,
     xlim: tuple[float, float] | None = None,
     xlim_percentiles: tuple[float, float] | None = None,
     xlim_symmetric_percentiles: tuple[float, float] | None = (1.0, 99.0),
@@ -483,6 +517,20 @@ def analyze_partb2_simulated_calendar_month_buyhold(
     Pool **calendar-month** rolling simple returns across Part (b) simulated
     paths (same convention as ``rolling_calendar_month_returns`` on daily
     ``Date`` / ``Close``).
+
+    Month-to-month simulation uses consecutive ``monthly_early`` rows (same as
+    ``monthly_early.csv`` / ``year_month``): each bridged interval starts at the
+    **previous** month-end ``Close`` and ends at the **current** month-end
+    ``Close``. Example: target March 1996 uses February 1996-02-29 ``Close`` as
+    ``close_start`` and March 1996-03-29 ``Close`` as ``close_end``; see
+    ``partb_sim.bridge_interval_from_monthly_early``.
+
+    By default (``use_first_trading_day_close_anchor=False``), each simulated month
+    is anchored only at **two month-end closes** from ``monthly_early`` (previous
+    month last day → current month last day), consistent with having only EOM
+    data for the early 40 years; then GARCH + bridge fill trading days before
+    percentiles. Set ``use_first_trading_day_close_anchor=True`` to also pin the
+    first intra-month day to ``daily_full``.
 
     Default ``xlim_symmetric_percentiles=(1, 99)`` zooms near 0; pass ``None``
     for matplotlib auto limits.
@@ -504,6 +552,8 @@ def analyze_partb2_simulated_calendar_month_buyhold(
         seed=seed,
         burn=burn,
         innovations=kind,
+        price_col=price_col,
+        use_first_trading_day_close_anchor=use_first_trading_day_close_anchor,
     )
     labels = {h: _CAL_MONTH_LABELS.get(h, f"{h} calendar months") for h in horizons_months}
     return analyze_trading_day_buyhold_percentiles(
@@ -514,6 +564,61 @@ def analyze_partb2_simulated_calendar_month_buyhold(
         show_plots=show_plots,
         savefig_path=savefig_path,
         title_prefix="Part (b) sim",
+        xlim=xlim,
+        xlim_percentiles=xlim_percentiles,
+        xlim_symmetric_percentiles=xlim_symmetric_percentiles,
+    )
+
+
+def analyze_partc2_simulated_calendar_month_buyhold(
+    monthly_avg_early: pd.DataFrame,
+    daily_full: pd.DataFrame,
+    garch: TGarchFitResult,
+    *,
+    horizons_months: tuple[int, ...] = (1, 3, 6),
+    n_paths: int = 100,
+    seed: int | None = 42,
+    show_plots: bool = True,
+    savefig_path: str | Path | None = None,
+    burn: int = 500,
+    innovations: str = "parametric",
+    price_col: str = "Close",
+    xlim: tuple[float, float] | None = None,
+    xlim_percentiles: tuple[float, float] | None = None,
+    xlim_symmetric_percentiles: tuple[float, float] | None = (1.0, 99.0),
+) -> dict[int, dict[str, object]]:
+    """
+    Pool calendar-month rolling simple returns across Part (c) simulated paths
+    (``partc_sim``: each month’s **mean daily Close** matches ``monthly_avg_early``).
+    """
+    from partc_sim import InnovationKind, partc2_pool_calendar_month_simple_returns
+
+    if not isinstance(garch, TGarchFitResult):
+        raise TypeError("garch must be TGarchFitResult")
+    kind: InnovationKind = (
+        "bootstrap" if innovations == "bootstrap" else "parametric"
+    )
+
+    pooled = partc2_pool_calendar_month_simple_returns(
+        monthly_avg_early,
+        daily_full,
+        garch,
+        horizons_months=horizons_months,
+        n_paths=n_paths,
+        seed=seed,
+        burn=burn,
+        innovations=kind,
+        price_col=price_col,
+    )
+    labels = {h: _CAL_MONTH_LABELS.get(h, f"{h} calendar months") for h in horizons_months}
+    return analyze_trading_day_buyhold_percentiles(
+        trading_windows=horizons_months,
+        pooled_returns=pooled,
+        horizon_labels=labels,
+        xlabel="Total simple return (calendar-month rolling buy-hold)",
+        show_plots=show_plots,
+        savefig_path=savefig_path,
+        title_prefix="Part (c) sim",
         xlim=xlim,
         xlim_percentiles=xlim_percentiles,
         xlim_symmetric_percentiles=xlim_symmetric_percentiles,

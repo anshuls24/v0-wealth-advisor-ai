@@ -1,0 +1,31 @@
+PART A
+1. Fit a GARCH model to the series so volatility clustering is modeled explicitly.
+
+2. pply EVT / GPD on the standardized residuals from that GARCH fit—not on raw 
+returns—so tail risk is estimated after removing the predictable volatility dynamics.
+
+
+So the picture is arguing for conditional EVT: GARCH for the volatility path, 
+EVT on residuals for tail / extreme-loss modeling (typical in VaR / ES–style work).
+
+
+
+For Part B: 
+Q. Develop and implement a method to estimate the same 1-month, 3-month, and 6-month 
+shocks under this data limitation. (TAIL ESTIMATION)
+The following steps:
+- Construct month-end horizon returns and convert to losses
+- Choose Threshold
+- Fit a Generalized Pareto Distribution to losses above threshold (Extreme Value Theorem).
+- Use the fitted tail to estimate the desired adverse quantiles.
+
+
+
+For Part C: 
+Q. Develop and implement a method to estimate the same 1-month, 3-month, and 6-month 
+shocks under this data limitation. (TAIL ESTIMATION)
+The following steps:
+- Construct month-end horizon returns and convert to losses
+- Choose Threshold
+- Fit a Generalized Pareto Distribution to losses above threshold (Extreme Value Theorem).
+- Use the fitted tail to estimate the desired adverse quantiles.
